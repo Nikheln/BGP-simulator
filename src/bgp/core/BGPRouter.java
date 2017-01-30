@@ -2,8 +2,10 @@ package bgp.core;
 
 public class BGPRouter {
 	
-	public BGPRouter() {
-		// TODO Auto-generated constructor stub
+	public final long id;
+	
+	public BGPRouter(long id) {
+		this.id = id;
 	}
 
 }

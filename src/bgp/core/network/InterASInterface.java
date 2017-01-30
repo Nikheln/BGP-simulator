@@ -6,6 +6,6 @@ public interface InterASInterface {
 	
 	public byte[] receiveData();
 	
-	public byte[] getOwnAddress();
+	public Address getOwnAddress();
 
 }

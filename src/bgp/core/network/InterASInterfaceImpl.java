@@ -2,11 +2,11 @@ package bgp.core.network;
 
 public class InterASInterfaceImpl implements InterASInterface {
 	
-	private final byte[] ownAddress;
+	private final Address ownAddress;
 	
-	public InterASInterfaceImpl(byte[] ownAddress, byte[] neighbourAddress) throws IllegalArgumentException {
-		if (ownAddress == null || ownAddress.length != 4) {
-			throw new IllegalArgumentException("Own address should not be null and should contain 4 values");
+	public InterASInterfaceImpl(Address ownAddress, Address neighbourAddress) throws IllegalArgumentException {
+		if (ownAddress == null || neighbourAddress == null) {
+			throw new IllegalArgumentException("Neither address can be null!");
 		}
 		this.ownAddress = ownAddress;
 	}
@@ -24,7 +24,7 @@ public class InterASInterfaceImpl implements InterASInterface {
 	}
 
 	@Override
-	public byte[] getOwnAddress() {
+	public Address getOwnAddress() {
 		return ownAddress;
 	}
 
