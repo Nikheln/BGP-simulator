@@ -3,7 +3,6 @@ package bgp.core;
 import bgp.core.fsm.StateMachine;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
-import bgp.core.network.InterASInterfaceImpl;
 
 public class ASConnection {
 	
@@ -11,8 +10,8 @@ public class ASConnection {
 	
 	private final StateMachine fsm;
 	
-	public ASConnection(Address ownAddress, Address neighbourAddress) {
-		this.adapter = new InterASInterfaceImpl(ownAddress, neighbourAddress);
+	public ASConnection(Address ownAddress, Address neighbourAddress, PackageHandler handler) {
+		this.adapter = new InterASInterface(ownAddress, neighbourAddress, handler);
 		this.fsm = new StateMachine();
 	}
 
