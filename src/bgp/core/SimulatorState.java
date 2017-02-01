@@ -1,7 +1,9 @@
 package bgp.core;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import bgp.core.network.Address;
 
@@ -41,6 +43,35 @@ public class SimulatorState {
 			}
 		}
 		return false;
+	}
+	
+
+	
+	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
+	
+	public static void registerRouter(BGPRouter router) throws Exception {
+		if (router == null) {
+			throw new IllegalArgumentException("Router can not be null");
+		}
+		if (routers.containsKey(router.id)) {
+			throw new IllegalStateException("Router with this id has already been registered");
+		}
+		
+		routers.put(router.id, router);
+	}
+	
+	public static void unregisterRouter(BGPRouter router) throws Exception {
+		if (router == null) {
+			throw new IllegalArgumentException("Router removed can not be null");
+		}
+		unregisterRouter(router.id);
+	}
+	
+	public static void unregisterRouter(int id) throws IllegalStateException {
+		if (!routers.containsKey(id)) {
+			throw new IllegalStateException("Router specified is not registered");
+		}
+		routers.remove(id);
 	}
 	
 }
