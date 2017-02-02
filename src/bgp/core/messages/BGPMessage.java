@@ -8,17 +8,18 @@ public abstract class BGPMessage {
 	
 	private static final int MARKER_LENGTH = 16;
 	
+	protected static final int HEADER_LENGTH = MARKER_LENGTH + 3;
+	
 	public byte[] serialize() {
 		final byte type = getType();
 		final byte[] body = getBody();
 		
-		int messageLength = MARKER_LENGTH	// Fixed length marker
-				+ 2							// Length field
-				+ 1							// Type field
+		int messageLength = HEADER_LENGTH	// Fixed length header
 				+ body.length;				// Message body
 		
 		final byte[] message = new byte[messageLength];
 		
+		// RFC4271:  This 16-octet field is included for compatibility; it MUST be set to all ones.
 		for (int i = 0; i < MARKER_LENGTH; i++) {
 			message[i] = ~0x0;
 		}

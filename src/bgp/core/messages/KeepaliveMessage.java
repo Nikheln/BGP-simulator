@@ -1,20 +1,25 @@
 package bgp.core.messages;
 
+/**
+ * A KEEPALIVE message consists of only the message header and has a
+   length of 19 octets.
+   
+ * @author Niko
+ *
+ */
 public class KeepaliveMessage extends BGPMessage {
 
 	protected KeepaliveMessage(byte[] messageContent) {
-		
 	}
+	
 	@Override
 	protected byte getType() {
-		// TODO Auto-generated method stub
-		return 0;
+		return (byte) 4;
 	}
 
 	@Override
 	protected byte[] getBody() {
-		// TODO Auto-generated method stub
-		return null;
+		return new byte[0];
 	}
 
 }

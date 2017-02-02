@@ -33,6 +33,10 @@ public class Address {
 		
 		return sb.toString();
 	}
+	
+	public long getAddress() {
+		return address;
+	}
 
 	
 	/**
