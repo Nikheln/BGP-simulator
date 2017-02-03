@@ -1,9 +1,11 @@
 package bgp.core.messages;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Subnet;
 
 /**
@@ -26,13 +28,18 @@ public class UpdateMessage extends BGPMessage {
 	
 	private final List<Subnet> withdrawnRoutes;
 	
+	private final List<PathAttribute> pathAttributes;
+	
 	public UpdateMessage(List<Subnet> withdrawnRoutes) {
 		this.withdrawnRoutes = new ArrayList<>();
 		this.withdrawnRoutes.addAll(withdrawnRoutes);
+		
+		this.pathAttributes = new ArrayList<>();
 	}
 	
 	protected UpdateMessage(byte[] messageContent) {
 		this.withdrawnRoutes = new ArrayList<>();
+		this.pathAttributes = new ArrayList<>();
 	}
 
 	@Override
@@ -69,8 +76,9 @@ public class UpdateMessage extends BGPMessage {
 		body[index++] = (byte) (withdrawnRoutesSize >> 8);
 		body[index++] = (byte) withdrawnRoutesSize;
 		
-		for (Byte b : withdrawnRoutesBytes) {
-			body[index++] = b;
+		Iterator<Byte> iter = withdrawnRoutesBytes.iterator();
+		while (iter.hasNext()) {
+			body[index++] = iter.next();
 		}
 		
 		// TODO Auto-generated method stub
