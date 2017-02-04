@@ -28,12 +28,12 @@ public class NextHop extends PathAttribute {
 	}
 
 	@Override
-	protected byte getTypeCode() {
+	public byte getTypeCode() {
 		return (byte) 3;
 	}
 
 	@Override
-	protected byte[] getTypeBody() {
+	public byte[] getTypeBody() {
 		return nextHop;
 	}
 

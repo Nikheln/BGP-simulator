@@ -29,12 +29,12 @@ public class Origin extends PathAttribute {
 	}
 
 	@Override
-	protected byte getTypeCode() {
+	public byte getTypeCode() {
 		return (byte) 1;
 	}
 
 	@Override
-	protected byte[] getTypeBody() {
+	public byte[] getTypeBody() {
 		return new byte[]{(byte) originValue};
 	}
 

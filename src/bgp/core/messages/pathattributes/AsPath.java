@@ -43,17 +43,26 @@ public class AsPath extends PathAttribute {
 		}
 	}
 	
-	public void appendId(int idToAppend) {
+	/**
+	 * Prepend the given AS ID to the beginning of the list (usually own ID)
+	 * 
+	 * @param idToAppend
+	 * @throws IllegalStateException If the value given is already in the list
+	 */
+	public void appendId(int idToAppend) throws IllegalStateException {
+		if (idSequence.contains(idToAppend)) {
+			throw new IllegalStateException("AS_PATH contains a loop");
+		}
 		this.idSequence.addFirst(idToAppend);
 	}
 	
 	@Override
-	protected byte getTypeCode() {
+	public byte getTypeCode() {
 		return (byte) 2;
 	}
 
 	@Override
-	protected byte[] getTypeBody() {
+	public byte[] getTypeBody() {
 		byte pathSegmentType = (byte) segmentType;
 		byte sequenceLength = (byte) idSequence.size();
 		

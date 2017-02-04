@@ -61,5 +61,5 @@ public class Subnet extends Address {
 		}
 		
 		return mask;
-	}
+	} 
 }

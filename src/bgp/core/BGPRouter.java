@@ -3,7 +3,10 @@ package bgp.core;
 import java.util.ArrayList;
 import java.util.List;
 
-public class BGPRouter implements PackageHandler {
+import bgp.core.network.Address;
+import bgp.core.network.AddressProvider;
+
+public class BGPRouter implements PackageHandler, AddressProvider {
 	
 	public final int id;
 	
@@ -16,6 +19,18 @@ public class BGPRouter implements PackageHandler {
 
 	@Override
 	public void processPackage(byte[] pkg) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public Address reserveAddress() throws IllegalArgumentException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void freeAddress(Address address) throws IllegalArgumentException {
 		// TODO Auto-generated method stub
 		
 	}

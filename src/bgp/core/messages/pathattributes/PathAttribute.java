@@ -2,9 +2,9 @@ package bgp.core.messages.pathattributes;
 
 public abstract class PathAttribute {
 	
-	protected abstract byte getTypeCode();
+	public abstract byte getTypeCode();
 	
-	protected abstract byte[] getTypeBody();
+	public abstract byte[] getTypeBody();
 	
 	protected static final byte ONE = (byte) 1;
 	protected static final byte ZERO = (byte) 0;
@@ -112,7 +112,7 @@ public abstract class PathAttribute {
 			// Not implemented, only for IBGP communications
 		case 6:
 			// ATOMIC_AGGREGATE
-			// Not implemented, only for IBGP communications
+			// Not implemented yet
 		}
 		throw new IllegalArgumentException("Attribute of type " + input[1] + "could not be parsed");
 	}
