@@ -6,8 +6,8 @@ import java.io.PipedOutputStream;
 import java.util.Arrays;
 
 import bgp.core.Consts;
-import bgp.core.PackageHandler;
 import bgp.core.SimulatorState;
+import bgp.core.packet.PacketRouter;
 
 public class InterASInterface implements AutoCloseable, Runnable {
 	
@@ -22,11 +22,11 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	private final PipedInputStream in;
 	private final PipedOutputStream out;
 	
-	private final PackageHandler handler;
+	private final PacketRouter handler;
 	
 	private volatile boolean shutdown;
 	
-	public InterASInterface(Address ownAddress, Address neighbourAddress, PackageHandler handler) throws IllegalArgumentException {
+	public InterASInterface(Address ownAddress, Address neighbourAddress, PacketRouter handler) throws IllegalArgumentException {
 		if (ownAddress == null || neighbourAddress == null) {
 			throw new IllegalArgumentException("Neither address can be null!");
 		}
@@ -68,7 +68,7 @@ public class InterASInterface implements AutoCloseable, Runnable {
 				octetCount = in.read();
 				in.read(readBuffer, 0, octetCount);
 				
-				handler.processPackage(Arrays.copyOf(readBuffer, octetCount));
+				handler.routePacket(Arrays.copyOf(readBuffer, octetCount));
 			} catch (IOException e) {
 				if (!shutdown) {
 					// Actual error

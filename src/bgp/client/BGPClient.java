@@ -1,0 +1,40 @@
+package bgp.client;
+
+import bgp.core.BGPRouter;
+import bgp.core.network.Address;
+import bgp.core.network.AddressProvider;
+import bgp.core.packet.PacketRouter;
+import bgp.core.packet.PacketReceiver;
+
+public class BGPClient implements PacketReceiver {
+	
+	private final Address address;
+	private final PacketRouter ph;
+	private final AddressProvider ap;
+	
+	private long receivedPacketCount;
+	
+	public BGPClient(BGPRouter router) {
+		this.address = router.reserveAddress(this);
+		this.ph = router;
+		this.ap = router;
+	}
+	
+	public void shutdown() {
+		ap.freeAddress(address);
+	}
+
+	/**
+	 * Only increments the packet counter at the moment.
+	 */
+	@Override
+	public void receivePacket(byte[] pkg) {
+		receivedPacketCount++;
+	}
+
+	@Override
+	public long getReceivedPacketCount() {
+		return receivedPacketCount;
+	}
+
+}

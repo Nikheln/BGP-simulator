@@ -10,7 +10,11 @@ public class Subnet extends Address {
 	}
 	
 	public boolean isInSubnet(Address other) {
-		return (other.address & bitmask) == this.address;
+		return isInSubnet(other.address);
+	}
+	
+	public boolean isInSubnet(long other) {
+		return (other & bitmask) == this.address;
 	}
 	
 	public String toString() {
@@ -25,6 +29,10 @@ public class Subnet extends Address {
 	public int getBitmaskLength() {
 		String bitmaskString = Long.toBinaryString(this.bitmask);
 		return bitmaskString.length() - bitmaskString.replace("1", "").length();
+	}
+	
+	public long getBitmask() {
+		return bitmask;
 	}
 	
 	
