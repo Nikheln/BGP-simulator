@@ -3,7 +3,7 @@ package bgp.core;
 import bgp.core.fsm.StateMachine;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
-import bgp.core.packet.PacketRouter;
+import bgp.core.network.packet.PacketRouter;
 
 public class ASConnection {
 	

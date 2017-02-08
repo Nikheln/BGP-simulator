@@ -1,6 +1,6 @@
 package bgp.core.network;
 
-import bgp.core.packet.PacketReceiver;
+import bgp.core.network.packet.PacketReceiver;
 
 /**
  * Classes implementing this interface provide a DHCP-like functionality and can serve Addresses from their designated subnet.

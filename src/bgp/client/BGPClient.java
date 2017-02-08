@@ -3,8 +3,8 @@ package bgp.client;
 import bgp.core.BGPRouter;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
-import bgp.core.packet.PacketRouter;
-import bgp.core.packet.PacketReceiver;
+import bgp.core.network.packet.PacketReceiver;
+import bgp.core.network.packet.PacketRouter;
 
 public class BGPClient implements PacketReceiver {
 	

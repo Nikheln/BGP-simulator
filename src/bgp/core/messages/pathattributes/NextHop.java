@@ -8,7 +8,7 @@ public class NextHop extends PathAttribute {
 	
 	/**
 	 * 
-	 * @param nextHop
+	 * @param nextHop IP address of the next hop (this device)
 	 * @throws IllegalArgumentException
 	 */
 	public NextHop(byte[] nextHop) throws IllegalArgumentException {

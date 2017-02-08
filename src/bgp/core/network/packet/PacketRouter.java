@@ -1,4 +1,4 @@
-package bgp.core.packet;
+package bgp.core.network.packet;
 
 /**
  * Classes implementing this interface should be able to process IPv4 packages sent to them via {@link #routePacket(byte[])}.

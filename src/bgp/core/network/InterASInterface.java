@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 import bgp.core.Consts;
 import bgp.core.SimulatorState;
-import bgp.core.packet.PacketRouter;
+import bgp.core.network.packet.PacketRouter;
 
 public class InterASInterface implements AutoCloseable, Runnable {
 	

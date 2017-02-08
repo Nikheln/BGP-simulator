@@ -1,4 +1,4 @@
-package bgp.core.packet;
+package bgp.core.network.packet;
 
 public interface PacketReceiver {
 	

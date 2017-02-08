@@ -3,27 +3,55 @@ package bgp.core.network;
 public class Subnet extends Address {
 	
 	private final long bitmask;
+	private final int bitmaskLength;
 	
 	protected Subnet(long address, long bitmask) {
 		super(address & bitmask);
 		this.bitmask = bitmask;
+		this.bitmaskLength = getBitmaskLength();
 	}
 	
-	public boolean isInSubnet(Address other) {
-		return isInSubnet(other.address);
+	public boolean containsAddress(Address other) {
+		return containsAddress(other.address);
 	}
 	
-	public boolean isInSubnet(long other) {
+	public boolean containsAddress(long other) {
 		return (other & bitmask) == this.address;
 	}
 	
+	/**
+	 * Checks if other is contained in this subnet
+	 * (prefix in subnet and longer subnet mask OR equal subnets)
+	 * @param other
+	 * @return
+	 */
+	public boolean containsSubnet(Subnet other) {
+		return (other.bitmask > this.bitmask && containsAddress(other.address))
+				|| this.equals(other);
+	}
+	
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append('/');
-		sb.append(getBitmaskLength());
+		sb.append(bitmaskLength);
 		
 		return sb.toString(); 
+	}
+	
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof Subnet) {
+			Subnet o = (Subnet) other;
+			return o.address == this.address && o.bitmask == this.bitmask;
+		}
+		return false;
+	}
+	
+	@Override
+	public int hashCode() {
+		return (int) (address + bitmaskLength);
 	}
 	
 	public int getBitmaskLength() {

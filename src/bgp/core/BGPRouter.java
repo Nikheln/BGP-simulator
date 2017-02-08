@@ -11,8 +11,8 @@ import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
 import bgp.core.network.PacketProcessor;
 import bgp.core.network.Subnet;
-import bgp.core.packet.PacketRouter;
-import bgp.core.packet.PacketReceiver;
+import bgp.core.network.packet.PacketReceiver;
+import bgp.core.network.packet.PacketRouter;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
 	
@@ -61,7 +61,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					+ pkg[17] << 16
 					+ pkg[18] << 8
 					+ pkg[19];
-			if (subnet.isInSubnet(address)) {
+			if (subnet.containsAddress(address)) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
 				if (rec != null) {
@@ -85,7 +85,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 
 	@Override
 	public void freeAddress(Address address) throws IllegalArgumentException {
-		 if (!subnet.isInSubnet(address)) {
+		 if (!subnet.containsAddress(address)) {
 			throw new IllegalArgumentException("Specified address is not in this subnet");
 		} else if (!packetReceivers.containsKey(address.getAddress())) {
 			throw new IllegalArgumentException("Specified address has not been registered");
