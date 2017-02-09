@@ -1,5 +1,6 @@
 package bgp.core;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
@@ -18,7 +19,7 @@ import bgp.core.network.PacketProcessor;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
-import bgp.core.routing.SubnetGraph;
+import bgp.core.routing.RoutingEngine;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
 	
@@ -40,7 +41,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	private final ExecutorService maintenanceThread;
 	
-	private final SubnetGraph connectivityGraph;
+	private final RoutingEngine connectivityGraph;
 	
 	/**
 	 * Map that pairs Addresses to their corresponding IPv4 packet receivers.
@@ -65,7 +66,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.packetProcessingThread = Executors.newSingleThreadExecutor();
 		
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
-		this.connectivityGraph = new SubnetGraph(this.id);
+		this.connectivityGraph = new RoutingEngine(this.id);
 		// Register this router's subnet
 		this.connectivityGraph.addRoutingInfo(this.subnet, this.id);
 	}
@@ -144,6 +145,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				} else if (m instanceof NotificationMessage) {
 					
 				} else if (m instanceof OpenMessage) {
+					OpenMessage om = (OpenMessage) m;
 					
 				} else if (m instanceof UpdateMessage) {
 					
@@ -156,6 +158,30 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			}
 		});
 	}
+	
+	/**
+	 * Connect two BGPRouter to one another. Automatically starts the connection process.
+	 * @param router1
+	 * @param router2
+	 * @throws IllegalArgumentException
+	 * @throws IOException
+	 */
+	public static void connectRouters(BGPRouter router1, BGPRouter router2) throws IllegalArgumentException, IOException {
+		if (router1.connections.containsKey(router2.id) || router2.connections.containsKey(router1.id)) {
+			throw new IllegalArgumentException("Routers already connected");
+		}
+		ASConnection conn1 = router1.getConnectionFor(router2.id);
+		ASConnection conn2 = router2.getConnectionFor(router1.id);
+		conn1.getAdapter().connectNeighbourOutputStream(conn2.getAdapter());
+		conn2.getAdapter().connectNeighbourOutputStream(conn1.getAdapter());
+		
+		conn1.start();
+		conn2.start();
+	}
+	
+	private ASConnection getConnectionFor(int otherId) {
+		return connections.computeIfAbsent(otherId, id -> new ASConnection(reserveAddress(this), this));
+	}
 
 	@Override
 	public long getReceivedPacketCount() {
@@ -163,7 +189,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	}
 	
 	public void registerKeepaliveTask(TimerTask task, long period) {
-		connectionKeepaliveTimer.scheduleAtFixedRate(task, 0, period);
+		connectionKeepaliveTimer.scheduleAtFixedRate(task, period, period);
 	}
 	
 	public void shutdown() {

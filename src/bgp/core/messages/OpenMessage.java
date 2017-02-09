@@ -70,4 +70,18 @@ public class OpenMessage extends BGPMessage {
 		return body;
 	}
 
+	public int getMyAS() {
+		return myAS;
+	}
+
+	public int getHoldTime() {
+		return holdTime;
+	}
+
+	public long getBgpId() {
+		return bgpId;
+	}
+	
+	
+
 }

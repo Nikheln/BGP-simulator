@@ -10,5 +10,7 @@ public class Consts {
 	
 	public static final int MAX_HOPS = 255;
 	
-	public static final int DEFAULT_KEEPALIVE_INTERVAL = 3000;
+	public static final int DEFAULT_KEEPALIVE_INTERVAL = 30000;
+	
+	public static final int DEFAULT_HOLD_DOWN_TIME = DEFAULT_KEEPALIVE_INTERVAL * 3;
 }

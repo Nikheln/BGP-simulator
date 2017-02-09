@@ -41,7 +41,7 @@ public class Address {
 	/**
 	 * 32 0's followed by 32 1's, NOR with this should be 0 on valid IP's 
 	 */
-	protected static final long VALID_IP_BITMAP = (~0x0L) >>> 32;
+	protected static final long VALID_IP_BITMASK = (~0x0L) >>> 32;
 	protected static final String VALID_IP_REGEX = "\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b";
 	
 	protected static long getLong(byte[] input) throws IllegalArgumentException {
@@ -81,7 +81,7 @@ public class Address {
 	}
 	
 	public static Address getAddress(long addressLong) throws IllegalArgumentException {
-		return new Address(addressLong & VALID_IP_BITMAP);
+		return new Address(addressLong & VALID_IP_BITMASK);
 	}
 	
 	public static Address getAddress(byte[] addressBytes) throws IllegalArgumentException {

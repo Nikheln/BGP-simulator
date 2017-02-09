@@ -12,6 +12,10 @@ public class KeepaliveMessage extends BGPMessage {
 	protected KeepaliveMessage(byte[] messageContent) {
 	}
 	
+	public KeepaliveMessage() {
+		
+	}
+	
 	@Override
 	protected byte getType() {
 		return (byte) 4;

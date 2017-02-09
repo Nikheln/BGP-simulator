@@ -39,10 +39,10 @@ public class SimulatorState {
 	public static boolean isAddressFree(Address address) {
 		for (Address usedAddress : usedAddresses) {
 			if (usedAddress.equals(address)) {
-				return true;
+				return false;
 			}
 		}
-		return false;
+		return true;
 	}
 	
 

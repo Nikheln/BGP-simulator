@@ -5,7 +5,7 @@ import java.util.Map;
 
 import bgp.core.network.Subnet;
 
-public class SubnetGraph {
+public class RoutingEngine {
 	
 	private final SubnetNode subnetRootNode;
 	
@@ -18,7 +18,7 @@ public class SubnetGraph {
 	 */
 	private final Map<Subnet, Integer> routingCache;
 	
-	public SubnetGraph(int asId) {
+	public RoutingEngine(int asId) {
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		this.asRootNode = new ASNode(asId);
 		this.asNodes = new HashMap<>();
@@ -58,28 +58,37 @@ public class SubnetGraph {
 				.orElse(-1));
 	}
 	
-	public void addRoutingInfo(Subnet subnet, int bgpId) {
-		SubnetNode newNode = new SubnetNode(subnet);
+	public void addRoutingInfo(Subnet subnet, int asId) {
+		ASNode asNode = asNodes.get(asId);
 		SubnetNode parent = getBestMatchingSubnetNode(subnet);
 		
-		parent.linkChildNode(newNode);
+		if (parent.subnet.equals(subnet)) {
+			parent.linkContainingAS(asNode);
+		} else {
+			SubnetNode newNode = new SubnetNode(subnet);
+			newNode.linkContainingAS(asNode);
+			parent.linkChildNode(newNode);
+		}
 		
 		routingCache.clear();
 	}
 	
-	public void removeRoutingInfo(Subnet subnet, int bgpId) {
+	public void removeRoutingInfo(Subnet subnet, int asId) {
+		ASNode asNode = asNodes.get(asId);
 		SubnetNode current = getBestMatchingSubnetNode(subnet);
-		ASNode currentAs = asNodes.get(bgpId);
-		current.removeRouter(currentAs);
 		
-		routingCache.clear();
+		if (current.subnet.equals(subnet)) {
+			current.removeRouter(asNode);
+			
+			routingCache.clear();
+		}
 	}
 	
-	public void removeRouter(int bgpId) {
-		if (this.asNodes.containsKey(bgpId)) {
-			ASNode toRemove = this.asNodes.get(bgpId);
+	public void removeRouter(int asId) {
+		if (this.asNodes.containsKey(asId)) {
+			ASNode toRemove = this.asNodes.get(asId);
 			toRemove.delete();
-			this.asNodes.remove(bgpId);
+			this.asNodes.remove(asId);
 			
 			routingCache.clear();
 		}

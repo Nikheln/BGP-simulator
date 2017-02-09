@@ -17,7 +17,6 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	private static final int INPUT_BUFFER_LENGTH = Consts.MTU << 6;
 	
 	private final Address ownAddress;
-	private final Address neighbourAddress;
 	
 	private final PipedInputStream in;
 	private final PipedOutputStream out;
@@ -26,9 +25,9 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	
 	private volatile boolean shutdown;
 	
-	public InterASInterface(Address ownAddress, Address neighbourAddress, PacketRouter handler) throws IllegalArgumentException {
-		if (ownAddress == null || neighbourAddress == null) {
-			throw new IllegalArgumentException("Neither address can be null!");
+	public InterASInterface(Address ownAddress, PacketRouter handler) throws IllegalArgumentException {
+		if (ownAddress == null) {
+			throw new IllegalArgumentException("Address can not be null!");
 		}
 		if (!SimulatorState.isAddressFree(ownAddress)) {
 			throw new IllegalStateException("Own address is already reserved");
@@ -36,7 +35,6 @@ public class InterASInterface implements AutoCloseable, Runnable {
 		
 		SimulatorState.reserveAddress(ownAddress);
 		this.ownAddress = ownAddress;
-		this.neighbourAddress = neighbourAddress;
 		
 		this.in = new PipedInputStream(INPUT_BUFFER_LENGTH);
 		this.out = new PipedOutputStream();
@@ -46,17 +44,18 @@ public class InterASInterface implements AutoCloseable, Runnable {
 
 	public void sendData(byte[] content) throws IOException {
 		if (content != null && content.length > 0) {
+			this.out.write(content.length);
 			this.out.write(content, 0, content.length);
 			this.out.flush();
 		}
 	}
 	
-	public Address getOwnAddress() {
-		return ownAddress;
+	public void connectNeighbourOutputStream(InterASInterface other) throws IOException {
+		this.in.connect(other.out);
 	}
 	
-	public Address getNeighbourAddress() {
-		return neighbourAddress;
+	public Address getOwnAddress() {
+		return ownAddress;
 	}
 
 	@Override

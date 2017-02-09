@@ -1,66 +1,69 @@
 package bgp.tests;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import bgp.core.network.Address;
 
+@RunWith(Parameterized.class)
 public class AddressTest {
-
-	@Test
-	public void testEqualsObject() {
-		assertTrue(Address.getAddress(0x0A00002FL).equals(Address.getAddress("10.0.0.47")));
-		assertFalse(Address.getAddress(0xFFFF0000L).equals(Address.getAddress(new byte[]{100,126,25,1})));
-	}
-
-	@Test
-	public void testToString() {
-		Address ones = Address.getAddress(0xFFFFFFFFL);
-		assertEquals("255.255.255.255", ones.toString());
-
-		Address zeroes = Address.getAddress(0x0L);
-		assertEquals("0.0.0.0", zeroes.toString());
-	}
-
-	@Test
-	public void testGetAddress() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testGetLongByteArray() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testGetLongString() {
-		fail("Not yet implemented");
-	}
-
-	@Test
-	public void testGetAddressString() {
+	
+	@Parameter(0)
+	public String addressString;
+	@Parameter(1)
+	public long addressLong;
+	
+	@Parameters
+	public static Collection<Object[]> generateData() {
+		List<Object[]> data = new ArrayList<>();
 		for (int i = 0; i < 100; i++) {
-			String address = (int)(Math.random()*256) + "."
-					+ (int)(Math.random()*256) + "."
-					+ (int)(Math.random()*256) + "."
-					+ (int)(Math.random()*256);
-			
-			assertEquals(address, Address.getAddress(address).toString());
+			String addString = "";
+			long addLong = 0L;
+			for (int j = 0; j < 4; j++) {
+				int next = (int)(Math.random()*256);
+				addString += next;
+				if (j < 3) {
+					addString += ".";
+				}
+				addLong = addLong*256 + next;
+			}
+			data.add(new Object[]{addString, addLong});
 		}
+		
+		return data;
 	}
 
 	@Test
 	public void testGetAddressLong() {
-		for (int i = 0; i < 100; i++) {
-			long addressValue = (long)(Math.random() * 256*256*256*256);
-			assertEquals(addressValue, Address.getAddress(addressValue).getAddress());
-		}
+		assertEquals(addressLong, Address.getAddress(addressLong).getAddress());
 	}
 
 	@Test
-	public void testGetAddressByteArray() {
-		fail("Not yet implemented");
+	public void testEqualsObject() {
+		assertTrue(Address.getAddress(addressString).equals(Address.getAddress(addressLong)));
+		assertTrue(Address.getAddress(addressLong).equals(Address.getAddress(addressString)));
+		assertFalse(Address.getAddress(addressLong).equals(Address.getAddress(addressLong + (int)((Math.random()-0.5)*10000))));
+	}
+
+	@Test
+	public void testToString() {
+		assertEquals(addressString, Address.getAddress(addressLong).toString());
+	}
+
+	@Test
+	public void testGetAddressString() {
+		assertEquals(addressString, Address.getAddress(addressString).toString());
 	}
 
 }
