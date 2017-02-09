@@ -23,13 +23,12 @@ public class Address {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(16);
-		
 		for (int i = 0; i < 4; i++) {
-			sb.append(address >> (8*i));
+			sb.append(address >>> (8*(3-i))&0xFF);
 			sb.append(".");
 		}
 		// Delete the last separator
-		sb.deleteCharAt(15);
+		sb.deleteCharAt(sb.length()-1);
 		
 		return sb.toString();
 	}
@@ -49,7 +48,7 @@ public class Address {
 		if (input.length != 4) {
 			throw new IllegalArgumentException("Byte array should contain 4 octets");
 		}
-		return input[0] << 24 + input[1] << 16 + input[2] << 8 + input[3];
+		return ((input[0]&0xFF) << 24) + ((input[1]&0xFF) << 16) + ((input[2]&0xFF) << 8) + ((input[3]&0xFF));
 	}
 	
 	protected static long getLong(String input) throws IllegalArgumentException {
@@ -65,9 +64,8 @@ public class Address {
 			if (octetValue == null || octetValue < 0 || octetValue >= 256) {
 				throw new IllegalArgumentException("All numbers should be in range 0..255, " + i + ". number was " + octetValue);
 			}
-			addressBytes[i] = octetValue.byteValue();
+			addressBytes[i] = (byte) (octetValue&0xFF);
 		}
-		
 		return getLong(addressBytes);
 	}
 	
@@ -83,10 +81,7 @@ public class Address {
 	}
 	
 	public static Address getAddress(long addressLong) throws IllegalArgumentException {
-		if ((addressLong & ~VALID_IP_BITMAP) != 0) {
-			throw new IllegalArgumentException("The address needs to be stored in the lowest 32 bits");
-		}
-		return new Address(addressLong);
+		return new Address(addressLong & VALID_IP_BITMAP);
 	}
 	
 	public static Address getAddress(byte[] addressBytes) throws IllegalArgumentException {
