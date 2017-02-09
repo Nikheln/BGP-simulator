@@ -1,18 +1,24 @@
 package bgp.core;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import bgp.core.messages.BGPMessage;
+import bgp.core.messages.KeepaliveMessage;
+import bgp.core.messages.NotificationMessage;
+import bgp.core.messages.OpenMessage;
+import bgp.core.messages.UpdateMessage;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
 import bgp.core.network.PacketProcessor;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
+import bgp.core.routing.SubnetGraph;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
 	
@@ -20,26 +26,48 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	public final Subnet subnet;
 	
-	private final List<ASConnection> connections;
+	/**
+	 * Map that pairs addresses to AS's
+	 */
+	private final Map<Long, Integer> addressToASId;
+	/**
+	 * Map that pairs AS id's to their corresponding connections
+	 */
+	private final Map<Integer, ASConnection> connections;
+	private final Timer connectionKeepaliveTimer;
 	
 	private final ExecutorService packetProcessingThread;
+	
+	private final ExecutorService maintenanceThread;
+	
+	private final SubnetGraph connectivityGraph;
 	
 	/**
 	 * Map that pairs Addresses to their corresponding IPv4 packet receivers.
 	 */
 	private final Map<Long, PacketReceiver> packetReceivers;
+	
 	private long addressingPointer;
 	
 	private long receivedPacketCount;
 	
 	public BGPRouter(int id, Subnet subnet) {
 		this.id = id;
-		this.connections = new ArrayList<>();
+		
+		this.addressToASId = new HashMap<>();
+		this.connections = new HashMap<>();
+		this.connectionKeepaliveTimer = new Timer(true);
+		
 		this.packetReceivers = new HashMap<>();
 		this.subnet = subnet;
 		this.addressingPointer = this.subnet.getAddress() + 1;
 		
 		this.packetProcessingThread = Executors.newSingleThreadExecutor();
+		
+		this.maintenanceThread = Executors.newSingleThreadExecutor();
+		this.connectivityGraph = new SubnetGraph(this.id);
+		// Register this router's subnet
+		this.connectivityGraph.addRoutingInfo(this.subnet, this.id);
 	}
 
 	@Override
@@ -57,18 +85,23 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				return;
 			}
 			
-			long address = pkg[16] << 24
-					+ pkg[17] << 16
-					+ pkg[18] << 8
-					+ pkg[19];
-			if (subnet.containsAddress(address)) {
+			long address = PacketProcessor.extractRecipient(pkg);
+			
+			// Decide the AS to forward to
+			int nextHop = connectivityGraph.decidePath(address);
+			
+			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
 				if (rec != null) {
 					rec.receivePacket(pkg);
 				}
-			} else {
+			} else if (connections.containsKey(nextHop)) {
 				// Packet should be forwarded elsewhere
+				connections.get(nextHop).sendPacket(pkg);
+			} else {
+				// No suitable next hop is found, drop packet
+				return;
 			}
 		});
 	}
@@ -97,6 +130,31 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	@Override
 	public void receivePacket(byte[] pkg) {
 		receivedPacketCount++;
+		
+		long senderAddress = PacketProcessor.extractSender(pkg);
+		int senderId = addressToASId.getOrDefault(senderAddress, -1);
+		maintenanceThread.execute(() -> {
+			try {
+				byte[] body = PacketProcessor.extractBody(pkg);
+				BGPMessage m = BGPMessage.deserialize(body);
+				
+				
+				if (m instanceof KeepaliveMessage && senderId != -1) {
+					connections.get(senderId).raiseKeepaliveFlag();
+				} else if (m instanceof NotificationMessage) {
+					
+				} else if (m instanceof OpenMessage) {
+					
+				} else if (m instanceof UpdateMessage) {
+					
+				} else {
+					
+				}
+				
+			} catch (IllegalArgumentException e) {
+				// Invalid BGP message received
+			}
+		});
 	}
 
 	@Override
@@ -104,9 +162,15 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		return receivedPacketCount;
 	}
 	
+	public void registerKeepaliveTask(TimerTask task, long period) {
+		connectionKeepaliveTimer.scheduleAtFixedRate(task, 0, period);
+	}
+	
 	public void shutdown() {
-		// Shut down packet routing
+		// Shut down all threads and timers
 		packetProcessingThread.shutdownNow();
+		maintenanceThread.shutdownNow();
+		connectionKeepaliveTimer.cancel();
 		
 		// Inform clients
 		

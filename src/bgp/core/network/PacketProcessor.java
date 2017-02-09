@@ -128,4 +128,18 @@ public class PacketProcessor {
 		
 		return result;
 	}
+	
+	public static long extractSender(byte[] packet) {
+		return packet[12] << 24
+				+ packet[13] << 16
+				+ packet[14] << 8
+				+ packet[15];
+	}
+	
+	public static long extractRecipient(byte[] packet) {
+		return packet[16] << 24
+				+ packet[17] << 16
+				+ packet[18] << 8
+				+ packet[19];
+	}
 }

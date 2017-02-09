@@ -16,7 +16,7 @@ public class SubnetGraph {
 	/**
 	 * Cache used to get previously used values. Cleared every time routing info changes.
 	 */
-	private final Map<Long, Integer> routingCache;
+	private final Map<Subnet, Integer> routingCache;
 	
 	public SubnetGraph(int asId) {
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
@@ -38,10 +38,11 @@ public class SubnetGraph {
 	 * @return Router ID of NEXT_HOP to be used
 	 */
 	public int decidePath(long address) {
-		return routingCache.computeIfAbsent(address, uncachedAddress -> 
-				getBestMatchingSubnetNode(uncachedAddress)
-				.asSet
+		SubnetNode subnetNode = getBestMatchingSubnetNode(address);
+		return routingCache.computeIfAbsent(subnetNode.subnet, uncachedSubnet -> 
+				subnetNode.asSet
 				.stream()
+				// Sort in case of multiple possible AS's
 				.sorted((as1, as2) -> {
 					if (as1.bestPreference != as2.bestPreference) {
 						return as2.bestPreference - as1.bestPreference;

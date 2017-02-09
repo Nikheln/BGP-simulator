@@ -9,4 +9,6 @@ public class Consts {
 	public static final int DEFAULT_PREF = 100;
 	
 	public static final int MAX_HOPS = 255;
+	
+	public static final int DEFAULT_KEEPALIVE_INTERVAL = 3000;
 }

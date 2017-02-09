@@ -36,7 +36,7 @@ public abstract class BGPMessage {
 	
 	/**
 	 * Build a message from a received byte stream.
-	 * @param message
+	 * @param message Body of a possible BGP message without IP header
 	 * @return A BGP message object
 	 */
 	public static BGPMessage deserialize(byte[] message) {

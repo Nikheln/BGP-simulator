@@ -114,8 +114,15 @@ public class ASNode {
 	}
 	
 	protected ASNode findBestNextHop(ASNode root) {
+		// Stop recursion if looking at root (packets routed here)
+		if (this == root) {
+			return this;
+		}
+		
 		ASNode bestSoFar = null;
+		
 		for (ASNode parent : parents) {
+			// Stop recursion if at the second level of the graph
 			if (parent == root) {
 				return this;
 			}
