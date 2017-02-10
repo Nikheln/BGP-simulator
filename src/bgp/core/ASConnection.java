@@ -7,7 +7,7 @@ import bgp.core.fsm.StateMachine;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
-import bgp.core.network.PacketProcessor;
+import bgp.core.network.PacketEngine;
 
 public class ASConnection {
 	
@@ -56,7 +56,7 @@ public class ASConnection {
 			@Override
 			public void run() {
 				KeepaliveMessage m = new KeepaliveMessage();
-				byte[] packet = PacketProcessor.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
+				byte[] packet = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
 				handler.routePacket(packet);
 			}
 			

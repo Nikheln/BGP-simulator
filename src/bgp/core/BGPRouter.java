@@ -15,7 +15,7 @@ import bgp.core.messages.OpenMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
-import bgp.core.network.PacketProcessor;
+import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
@@ -74,19 +74,19 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	@Override
 	public void routePacket(byte[] pkg) {
 		packetProcessingThread.execute(() -> {
-			if (!PacketProcessor.verifyChecksum(pkg)) {
+			if (!PacketEngine.verifyChecksum(pkg)) {
 				// Drop packet if checksum doesn't match
 				return;
 			}
 			
 			try {
-				PacketProcessor.decrementTTL(pkg);
+				PacketEngine.decrementTTL(pkg);
 			} catch (IllegalArgumentException e) {
 				// Drop packet if TTL == 0, otherwise decrement
 				return;
 			}
 			
-			long address = PacketProcessor.extractRecipient(pkg);
+			long address = PacketEngine.extractRecipient(pkg);
 			
 			// Decide the AS to forward to
 			int nextHop = connectivityGraph.decidePath(address);
@@ -132,11 +132,11 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	public void receivePacket(byte[] pkg) {
 		receivedPacketCount++;
 		
-		long senderAddress = PacketProcessor.extractSender(pkg);
+		long senderAddress = PacketEngine.extractSender(pkg);
 		int senderId = addressToASId.getOrDefault(senderAddress, -1);
 		maintenanceThread.execute(() -> {
 			try {
-				byte[] body = PacketProcessor.extractBody(pkg);
+				byte[] body = PacketEngine.extractBody(pkg);
 				BGPMessage m = BGPMessage.deserialize(body);
 				
 				

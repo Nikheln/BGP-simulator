@@ -5,7 +5,7 @@ package bgp.core.network;
  * @author Niko
  *
  */
-public class PacketProcessor {
+public class PacketEngine {
 	
 	private static final int HEADER_LENGTH = 20;
 	/**
@@ -94,27 +94,55 @@ public class PacketProcessor {
 		packet[11] = (byte) (checksum);
 	}
 	
-	private static long calculateChecksum(byte[] packet) {
+	public static long calculateChecksum(byte[] packet) {
 		// AND operations with 0xFF's are in place to avoid type casting to int
-		long sum = 0;
-		for (int i = 0; i < HEADER_LENGTH; i++) {
-			if (i == 10 || i == 11) {
-				// Do nothing, checksum fields
-			} else if (i % 2 == 0) {
-				// Even packets are shifted left to simulate 16-bit calculations
-				sum += (packet[i] & 0xFF) << 8;
-			} else {
-				sum += (packet[i] & 0xFF);
-			}
+		long calculatedChecksum = 0;
+		for (int i = 0; i < HEADER_LENGTH; i += 2) {
+			calculatedChecksum = (calculatedChecksum + (((packet[i] << 8)&0xFF00) + (packet[i+1]&0x00FF)))
+					&0xFFFFFFFF;
 		}
-		return ~((sum & 0xFFFF) + (sum >> 16)) & 0xFFFF;
+		while ((calculatedChecksum&0xFFFFFFFF) > 0xFFFF) {
+			calculatedChecksum = (((calculatedChecksum&0xFFFF0000) >>> 16)
+					+ (calculatedChecksum&0x0000FFFF))&0xFFFFFFFF;
+		}
+		return (~calculatedChecksum) & 0xFFFF;
+	}
+	
+	/**
+	 * Validates the packet header by checking packet length, header checksum, IP version and header length
+	 * @param packet
+	 * @return true if packet header is correct, false otherwise
+	 */
+	public static boolean validatePacketHeader(byte[] packet) {
+		if (packet.length < 20) {
+			// Received packet is not long enough to hold header
+			return false;
+		}
+		if (!verifyChecksum(packet)) {
+			// Invalid checksum
+			return false;
+		}
+		
+		if ((packet[0]&0xF0) != VERSION) {
+			// Invalid IP version
+			return false;
+		}
+		
+		if ((packet[0]&0x0F) < 5) {
+			// IHL is less than 5
+			return false;
+		}
+		
+		if ((packet[0]&0x0F) * 4 < packet[2] << 8 + packet[3]) {
+			// Datagram is too short to contain header
+			return false;
+		}
+		
+		return true;
 	}
 	
 	public static boolean verifyChecksum(byte[] packet) {
-		long originalChecksum = (packet[10] >> 8) + packet[11];
-		long calculatedChecksum = calculateChecksum(packet);
-		
-		return originalChecksum == calculatedChecksum;
+		return calculateChecksum(packet) == 0;
 		
 	}
 	
