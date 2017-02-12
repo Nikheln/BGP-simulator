@@ -1,6 +1,7 @@
 package bgp.core;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
@@ -15,6 +16,7 @@ import bgp.core.messages.OpenMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
+import bgp.core.network.InterASInterface;
 import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
@@ -72,34 +74,32 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	}
 
 	@Override
-	public void routePacket(byte[] pkg) {
+	public void routePacket(byte[] packet) {
 		packetProcessingThread.execute(() -> {
-			if (!PacketEngine.verifyChecksum(pkg)) {
+			
+			if (!PacketEngine.validatePacketHeader(packet)) {
 				// Drop packet if checksum doesn't match
 				return;
 			}
 			
 			try {
-				PacketEngine.decrementTTL(pkg);
+				PacketEngine.decrementTTL(packet);
 			} catch (IllegalArgumentException e) {
 				// Drop packet if TTL == 0, otherwise decrement
 				return;
 			}
-			
-			long address = PacketEngine.extractRecipient(pkg);
-			
+			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
 			int nextHop = connectivityGraph.decidePath(address);
-			
 			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
 				if (rec != null) {
-					rec.receivePacket(pkg);
+					rec.receivePacket(packet);
 				}
 			} else if (connections.containsKey(nextHop)) {
 				// Packet should be forwarded elsewhere
-				connections.get(nextHop).sendPacket(pkg);
+				connections.get(nextHop).sendPacket(packet);
 			} else {
 				// No suitable next hop is found, drop packet
 				return;
@@ -131,22 +131,23 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	@Override
 	public void receivePacket(byte[] pkg) {
 		receivedPacketCount++;
-		
 		long senderAddress = PacketEngine.extractSender(pkg);
 		int senderId = addressToASId.getOrDefault(senderAddress, -1);
 		maintenanceThread.execute(() -> {
 			try {
 				byte[] body = PacketEngine.extractBody(pkg);
 				BGPMessage m = BGPMessage.deserialize(body);
-				
-				
 				if (m instanceof KeepaliveMessage && senderId != -1) {
 					connections.get(senderId).raiseKeepaliveFlag();
 				} else if (m instanceof NotificationMessage) {
 					
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
-					
+					addressToASId.put(senderAddress, om.getASId());
+					ASConnection conn = connections.get(om.getASId());
+					if (conn != null) {
+						conn.handleOpenMessage(om);
+					}
 				} else if (m instanceof UpdateMessage) {
 					
 				} else {
@@ -171,16 +172,27 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			throw new IllegalArgumentException("Routers already connected");
 		}
 		ASConnection conn1 = router1.getConnectionFor(router2.id);
+		InterASInterface adapter1 = conn1.getAdapter();
 		ASConnection conn2 = router2.getConnectionFor(router1.id);
-		conn1.getAdapter().connectNeighbourOutputStream(conn2.getAdapter());
-		conn2.getAdapter().connectNeighbourOutputStream(conn1.getAdapter());
+		InterASInterface adapter2 = conn2.getAdapter();
 		
-		conn1.start();
-		conn2.start();
+		adapter1.connectNeighbourOutputStream(adapter2);
+		adapter2.connectNeighbourOutputStream(adapter1);
+		
+		conn1.start(adapter2.getOwnAddress());
+		conn2.start(adapter1.getOwnAddress());
 	}
 	
-	private ASConnection getConnectionFor(int otherId) {
+	public ASConnection getConnectionFor(int otherId) {
 		return connections.computeIfAbsent(otherId, id -> new ASConnection(reserveAddress(this), this));
+	}
+	
+	public boolean hasConnectionTo(int otherId) {
+		return connections.containsKey(otherId);
+	}
+	
+	public Collection<ASConnection> getAllConnections() {
+		return connections.values();
 	}
 
 	@Override
@@ -188,8 +200,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		return receivedPacketCount;
 	}
 	
-	public void registerKeepaliveTask(TimerTask task, long period) {
-		connectionKeepaliveTimer.scheduleAtFixedRate(task, period, period);
+	public void registerKeepaliveTask(TimerTask task, long delay, long period) {
+		connectionKeepaliveTimer.scheduleAtFixedRate(task, delay, period);
 	}
 	
 	public void shutdown() {

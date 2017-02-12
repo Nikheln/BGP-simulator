@@ -19,7 +19,7 @@ public class RoutingEngine {
 	private final Map<Subnet, Integer> routingCache;
 	
 	public RoutingEngine(int asId) {
-		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
+		this.subnetRootNode = new SubnetNode(Subnet.getSubnet(0, ~0));
 		this.asRootNode = new ASNode(asId);
 		this.asNodes = new HashMap<>();
 		this.asNodes.put(asId, asRootNode);

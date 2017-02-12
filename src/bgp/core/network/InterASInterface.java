@@ -16,6 +16,8 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	 */
 	private static final int INPUT_BUFFER_LENGTH = Consts.MTU << 6;
 	
+	private Thread processingThread;
+	
 	private final Address ownAddress;
 	
 	private final PipedInputStream in;
@@ -52,6 +54,8 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	
 	public void connectNeighbourOutputStream(InterASInterface other) throws IOException {
 		this.in.connect(other.out);
+		processingThread = new Thread(this);
+		processingThread.start();
 	}
 	
 	public Address getOwnAddress() {
@@ -66,7 +70,6 @@ public class InterASInterface implements AutoCloseable, Runnable {
 			try {
 				octetCount = in.read();
 				in.read(readBuffer, 0, octetCount);
-				
 				handler.routePacket(Arrays.copyOf(readBuffer, octetCount));
 			} catch (IOException e) {
 				if (!shutdown) {

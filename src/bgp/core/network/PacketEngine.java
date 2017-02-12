@@ -123,7 +123,7 @@ public class PacketEngine {
 			return false;
 		}
 		
-		if ((packet[0]&0xF0) != VERSION) {
+		if (((packet[0]&0xF0)>>>4) != VERSION) {
 			// Invalid IP version
 			return false;
 		}
@@ -158,16 +158,26 @@ public class PacketEngine {
 	}
 	
 	public static long extractSender(byte[] packet) {
-		return packet[12] << 24
-				+ packet[13] << 16
-				+ packet[14] << 8
-				+ packet[15];
+		return (((packet[12] << 24)&0xFF000000)
+				+ ((packet[13] << 16)&0x00FF0000)
+				+ ((packet[14] << 8)&0x0000FF00)
+				+ ((packet[15])&0x000000FF));
 	}
 	
 	public static long extractRecipient(byte[] packet) {
-		return packet[16] << 24
-				+ packet[17] << 16
-				+ packet[18] << 8
-				+ packet[19];
+		return (((packet[16] << 24)&0xFF000000)
+				+ ((packet[17] << 16)&0x00FF0000)
+				+ ((packet[18] << 8)&0x0000FF00)
+				+ ((packet[19])&0x000000FF));
+	}
+	
+	public static void printPacket(byte[] packet) {
+		for (int i = 0; i < packet.length; i++) {
+			if ((i % 4) == 0) {
+				System.out.println();
+			}
+			System.out.print(String.format("%9s", Long.toBinaryString(packet[i]&0xFF) + "x").replace(' ', '0').replace('x', ' '));
+		}
+		System.out.println();
 	}
 }

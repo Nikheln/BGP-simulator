@@ -4,7 +4,7 @@ public class OpenMessage extends BGPMessage {
 	
 	private static final byte VERSION = 4;
 	
-	final int myAS;
+	final int asId;
 	final int holdTime;
 	final long bgpId;
 	
@@ -23,8 +23,8 @@ public class OpenMessage extends BGPMessage {
          speaker.  The value of the BGP Identifier is determined upon
          startup and is the same for every local interface and BGP peer.
 	 */
-	public OpenMessage(int myAS, int holdTime, long bgpId) {
-		this.myAS = myAS;
+	public OpenMessage(int asId, int holdTime, long bgpId) {
+		this.asId = asId;
 		this.holdTime = holdTime;
 		this.bgpId = bgpId;
 	}
@@ -36,12 +36,11 @@ public class OpenMessage extends BGPMessage {
 		if (messageContent[HEADER_LENGTH+9] != 0) {
 			throw new IllegalArgumentException("Current system does not support optional parameters");
 		}
-		myAS = (int)(messageContent[HEADER_LENGTH+1] << 8) + messageContent[HEADER_LENGTH+2];
-		holdTime = (int)(messageContent[HEADER_LENGTH+3] << 8) + messageContent[HEADER_LENGTH+4];
-		
+		asId = (int)(((messageContent[HEADER_LENGTH+1]&0xFF) << 8) + (messageContent[HEADER_LENGTH+2]&0x00FF))&0xFFFF;
+		holdTime = (int)(((messageContent[HEADER_LENGTH+3]&0xFF) << 8) + (messageContent[HEADER_LENGTH+4]&0x00FF))&0xFFFF;
 		long bgpIdTemp = 0;
 		for (int i = 0; i <= 4; i++) {
-			bgpIdTemp += (long)(messageContent[HEADER_LENGTH+5+i] << (i*8));
+			bgpIdTemp += (long)(messageContent[HEADER_LENGTH+5+i] << ((3-i)*8));
 		}
 		bgpId = bgpIdTemp;
 	}
@@ -54,24 +53,21 @@ public class OpenMessage extends BGPMessage {
 	@Override
 	protected byte[] getBody() {
 		byte[] body = new byte[10];
-		
 		body[0] = VERSION;
-		body[1] = (byte) (myAS >> 8);
-		body[2] = (byte) (myAS);
+		body[1] = (byte) (asId >> 8);
+		body[2] = (byte) (asId);
 		body[3] = (byte) (holdTime >> 8);
 		body[4] = (byte) (holdTime);
-		
 		for (int i = 0; i < 4; i++) {
 			body[5+i] = (byte) (bgpId >> ((3-i)*8));
 		}
 		// No optional parameters
-		body[10] = 0;
-		
+		body[9] = 0;
 		return body;
 	}
 
-	public int getMyAS() {
-		return myAS;
+	public int getASId() {
+		return asId;
 	}
 
 	public int getHoldTime() {
@@ -82,6 +78,12 @@ public class OpenMessage extends BGPMessage {
 		return bgpId;
 	}
 	
+	@Override
+	public String toString() {
+		return "AS id: " + asId
+				+ "\nHold time: " + holdTime
+				+ "\nBGP id: " + bgpId;
+	}
 	
 
 }

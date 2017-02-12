@@ -9,7 +9,15 @@ import bgp.core.network.Address;
 
 public class SimulatorState {
 	
+	public static boolean testingMode = false;
+	
 	private static final List<Address> usedAddresses = new ArrayList<>();
+	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
+	
+	public static void resetState() {
+		usedAddresses.clear();
+		routers.clear();
+	}
 	
 	public static void reserveAddress(Address address) throws IllegalStateException {
 		if (!isAddressFree(address)) {
@@ -45,9 +53,10 @@ public class SimulatorState {
 		return true;
 	}
 	
-
+	public static void setTestingMode(boolean tMode) {
+		testingMode = tMode;
+	}
 	
-	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
 	
 	public static void registerRouter(BGPRouter router) throws Exception {
 		if (router == null) {
@@ -58,6 +67,10 @@ public class SimulatorState {
 		}
 		
 		routers.put(router.id, router);
+	}
+	
+	public static BGPRouter getRouter(int bgpId) {
+		return routers.get(bgpId);
 	}
 	
 	public static void unregisterRouter(BGPRouter router) throws Exception {

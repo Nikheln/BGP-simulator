@@ -16,10 +16,7 @@ package bgp.core.fsm;public class StateMachine {
 	 * @param newState
 	 * @throws InvalidParameterException
 	 */
-	public void changeState(State oldState, State newState) throws IllegalArgumentException {
-		if (currentState != oldState) {
-			throw new IllegalArgumentException("FSM expected to be in " + oldState + ", was in " + currentState);
-		}
+	public void changeState(State newState) {
 		this.currentState = newState;
 	}
 

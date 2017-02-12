@@ -28,7 +28,7 @@ public abstract class BGPMessage {
 		message[18] = type;
 		
 		for (int i = 0; i < body.length; i++) {
-			message[20+i] = body[i];
+			message[19+i] = body[i];
 		}
 		
 		return message;

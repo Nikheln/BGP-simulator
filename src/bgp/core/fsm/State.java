@@ -1,6 +1,6 @@
 package bgp.core.fsm;
 
-enum State {
+public enum State {
 	IDLE,
 	CONNECT,
 	ACTIVE,
