@@ -1,5 +1,7 @@
 package bgp.core.network;
 
+import java.security.InvalidParameterException;
+
 public class Address {
 	protected final long address;
 	
@@ -35,6 +37,12 @@ public class Address {
 	
 	public long getAddress() {
 		return address;
+	}
+	
+	public byte[] getBytes() {
+		return new byte[]{
+				(byte) (address >> 24), (byte) (address >> 16),
+				(byte) (address >> 8), (byte) address};
 	}
 
 	

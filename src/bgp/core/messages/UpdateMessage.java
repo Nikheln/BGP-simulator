@@ -46,45 +46,59 @@ public class UpdateMessage extends BGPMessage {
 	}
 	
 	protected UpdateMessage(byte[] messageContent) {
-		int index = 0;
-		
+		int index = HEADER_LENGTH;
 		this.withdrawnRoutes = new ArrayList<>();
-		int withdrawnRoutesOctets = messageContent[index++] << 8 + messageContent[index++];
+		int withdrawnRoutesOctets = (messageContent[index++] << 8) + messageContent[index++];
 		for (int i = 0; i < withdrawnRoutesOctets; i++) {
 			int bml = messageContent[index++];
 			int octetCount = (int)(Math.ceil(bml/8.0));
 			
-			this.withdrawnRoutes.add(bytesToSubnet(Arrays.copyOfRange(messageContent, 2 + i + 1, 2 + i + 1 + octetCount)));
+			Subnet s = bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml);
+			this.withdrawnRoutes.add(s);
 			index += octetCount;
+			i += octetCount;
 		}
 		
 		this.pathAttributes = new ArrayList<>();
-		int pathAttributeOctets = messageContent[index++] << 8 + messageContent[index++];
+		int pathAttributeOctets = (messageContent[index++] << 8) + messageContent[index++];
 		for (int i = 0; i < pathAttributeOctets; i++) {
 			int startIndex = index;
-			int pal = 2;
+			int pal = 0;
 			if ((messageContent[index++] & 0b00010000) == 0) {
-				// Extended
-				index++; // Skip type code
-				pal += (messageContent[index++] << 8) + (messageContent[index++]);
-			} else {
 				// Not extended
 				index++; // Skip type code
 				pal += (messageContent[index++]);
+			} else {
+				// Extended
+				index++; // Skip type code
+				pal += (messageContent[index++] << 8) + (messageContent[index++]);
 			}
 			this.pathAttributes.add(PathAttribute.deserialize(Arrays.copyOfRange(messageContent, startIndex, startIndex + pal)));
 			index = startIndex + pal;
+			i += pal;
 		}
 		
 		this.NLRI = new ArrayList<>();
 		
 		while (index < messageContent.length) {
-			int bml = messageContent[index];
+			int bml = messageContent[index++];
 			int octetCount = (int)(Math.ceil(bml/8.0));
 			
-			this.NLRI.add(bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + 1 + octetCount)));
-			index = index + octetCount + 1;
+			this.NLRI.add(bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml));
+			index = index + octetCount;
 		}
+	}
+	
+	public List<Subnet> getWithdrawnRoutes() {
+		return withdrawnRoutes;
+	}
+
+	public List<PathAttribute> getPathAttributes() {
+		return pathAttributes;
+	}
+
+	public List<Subnet> getNLRI() {
+		return NLRI;
 	}
 
 	@Override
@@ -107,7 +121,7 @@ public class UpdateMessage extends BGPMessage {
 		
 		List<Byte> pathAttributeBytes = new LinkedList<>();
 		for (PathAttribute b : pathAttributes) {
-			byte[] paBody = b.getTypeBody();
+			byte[] paBody = PathAttribute.serialize(b);
 			int paBodyLen = paBody.length;
 			
 			for (int i = 0; i < paBodyLen; i++) {
@@ -125,7 +139,6 @@ public class UpdateMessage extends BGPMessage {
 		}
 		int NLRISize = NLRIBytes.size();
 		
-		
 		int bodyLength = 2				// Withdrawn octet length
 				+ withdrawnRoutesSize	// Withdrawn routes
 				+ 2						// Path attributes octet length
@@ -134,8 +147,11 @@ public class UpdateMessage extends BGPMessage {
 		byte[] body = new byte[bodyLength];
 		
 		int index = 0;
-		
-		body[index++] = (byte) (withdrawnRoutesSize >> 8);
+		// this field shows the length of the Withdrawn Routes
+		// field in bytes. When it is set to 0, there are no
+		// routes withdrawn and the Withdrawn Routes field
+		// will not show up.
+		body[index++] = (byte) (withdrawnRoutesSize >>> 8);
 		body[index++] = (byte) (withdrawnRoutesSize);
 		
 		Iterator<Byte> iter = withdrawnRoutesBytes.iterator();
@@ -144,9 +160,8 @@ public class UpdateMessage extends BGPMessage {
 		}
 		
 		
-		body[index++] = (byte) (pathAttributesSize >> 8);
+		body[index++] = (byte) (pathAttributesSize >>> 8);
 		body[index++] = (byte) (pathAttributesSize);
-		
 		iter = pathAttributeBytes.iterator();
 		while (iter.hasNext()) {
 			body[index++] = iter.next();
@@ -171,20 +186,25 @@ public class UpdateMessage extends BGPMessage {
 		
 		r[index++] = (byte) bml;
 		for (int i = 0; i < octetCount; i++) {
-			r[index++] = (byte) (ip >> ((3-i)*8));
+			r[index++] = (byte) (ip >>> ((3-i)*8));
 		}
 		
 		return r;
 	}
 	
-	private Subnet bytesToSubnet(byte[] b) {
+	private Subnet bytesToSubnet(byte[] b, int bitmaskLength) {
 		long addressBytes = 0;
+		int index = 0;
+		int[] masks = new int[]{0xFF000000, 0x00FF0000, 0x0000FF00, 0x000000FF};
+		int shift = 24;
 		
-		for (int i = 0; i+1 < b.length; i++) {
-			addressBytes += (b[i+1] << (8*(3-i)));
+		while (index < b.length) {
+			addressBytes += (b[index] << shift)&masks[index];
+			index += 1;
+			shift -= 8;
 		}
 		
-		return Subnet.getSubnet(addressBytes, Subnet.getSubnetMask(b[0]));
+		return Subnet.getSubnet(addressBytes, Subnet.getSubnetMask(bitmaskLength));
 	}
 
 }

@@ -57,6 +57,16 @@ public class AsPath extends PathAttribute {
 	}
 	
 	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof AsPath) {
+			AsPath other = (AsPath)obj;
+			return other.segmentType == this.segmentType
+					&& this.idSequence.equals(other.idSequence);
+		}
+		return false;
+	}
+	
+	@Override
 	public byte getTypeCode() {
 		return (byte) 2;
 	}

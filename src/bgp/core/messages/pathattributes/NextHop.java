@@ -22,9 +22,17 @@ public class NextHop extends PathAttribute {
 	protected NextHop(byte[] input, boolean deserialization) throws IllegalArgumentException {
 		super(input[0]);
 		if (input.length != 3 + extended + 4) {
-			throw new IllegalArgumentException("Input package is of incorrect size");
+			throw new IllegalArgumentException("Input package is of incorrect size, expected " + (extended+7) + ", was " + input.length);
 		}
 		this.nextHop = Arrays.copyOfRange(input, input.length-4, input.length);
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof NextHop) {
+			return Arrays.equals(((NextHop)obj).nextHop, nextHop);
+		}
+		return false;
 	}
 
 	@Override

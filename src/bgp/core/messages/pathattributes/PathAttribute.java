@@ -61,7 +61,7 @@ public abstract class PathAttribute {
 		this.extended = (byte) ((flagByte >> 4) & 1);
 	}
 	
-	protected byte[] getBody() {
+	private byte[] getBody() {
 		byte typeCode = getTypeCode();
 		byte[] typeBody = getTypeBody();
 		int prefixLength = 3 + extended;
@@ -93,10 +93,15 @@ public abstract class PathAttribute {
 		return body;
 	}
 	
+	public static byte[] serialize(PathAttribute input) {
+		return input.getBody();
+	}
+	
 	public static PathAttribute deserialize(byte[] input) throws IllegalArgumentException {
 		if (input == null || input.length < 3) {
 			throw new IllegalArgumentException("Path attribute should be at least 3 octets.");
 		}
+		
 		switch(input[1]) {
 		case 1:
 			// ORIGIN
@@ -114,7 +119,7 @@ public abstract class PathAttribute {
 			// ATOMIC_AGGREGATE
 			// Not implemented yet
 		}
-		throw new IllegalArgumentException("Attribute of type " + input[1] + "could not be parsed");
+		throw new IllegalArgumentException("Attribute of type " + input[1] + " could not be parsed");
 	}
 	
 }

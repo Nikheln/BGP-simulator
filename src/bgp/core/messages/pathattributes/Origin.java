@@ -27,6 +27,12 @@ public class Origin extends PathAttribute {
 			throw new IllegalArgumentException("Origin value must be in range 0..2");
 		}
 	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		return (obj instanceof Origin)
+				&& ((Origin)obj).originValue == originValue;
+	}
 
 	@Override
 	public byte getTypeCode() {
