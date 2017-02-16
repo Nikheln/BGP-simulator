@@ -2,6 +2,7 @@ package bgp.core.messages.pathattributes;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * In its current state, the system only support AS_SEQUENCEs shorter than 255 hops
@@ -10,6 +11,7 @@ import java.util.List;
  */
 public class AsPath extends PathAttribute {
 	
+	// First node is the nearest AS, last one is the originating one
 	private final LinkedList<Integer> idSequence;
 	
 	private final byte segmentType;
@@ -54,6 +56,10 @@ public class AsPath extends PathAttribute {
 			throw new IllegalStateException("AS_PATH contains a loop");
 		}
 		this.idSequence.addFirst(idToAppend);
+	}
+	
+	public LinkedList<Integer> getIdSequence() {
+		return idSequence;
 	}
 	
 	@Override

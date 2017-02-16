@@ -77,13 +77,6 @@ public class InterASInterfaceTest {
 			this.counter = new AtomicInteger();
 			this.summer = new AtomicInteger();
 		}
-
-		@Override
-		public void routePacket(byte[] pkg) {
-			int value = pkg[0];
-			counter.incrementAndGet();
-			summer.addAndGet(value);
-		}
 		
 		private int getCounterValue() {
 			return counter.get();
@@ -91,6 +84,13 @@ public class InterASInterfaceTest {
 		
 		private int getSum() {
 			return summer.get();
+		}
+
+		@Override
+		public void routePacket(byte[] pkg, InterASInterface receivingInterface) {
+			int value = pkg[0];
+			counter.incrementAndGet();
+			summer.addAndGet(value);
 		}
 		
 	}

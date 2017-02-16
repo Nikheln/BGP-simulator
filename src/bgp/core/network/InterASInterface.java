@@ -70,7 +70,7 @@ public class InterASInterface implements AutoCloseable, Runnable {
 			try {
 				octetCount = in.read();
 				in.read(readBuffer, 0, octetCount);
-				handler.routePacket(Arrays.copyOf(readBuffer, octetCount));
+				handler.routePacket(Arrays.copyOf(readBuffer, octetCount), this);
 			} catch (IOException e) {
 				if (!shutdown) {
 					// Actual error

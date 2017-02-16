@@ -1,5 +1,7 @@
 package bgp.core.network.packet;
 
+import bgp.core.network.InterASInterface;
+
 /**
  * Classes implementing this interface should be able to process IPv4 packages sent to them via {@link #routePacket(byte[])}.
  * @author Niko
@@ -11,5 +13,5 @@ public interface PacketRouter {
 	 * 
 	 * @param pkg
 	 */
-	public void routePacket(byte[] pkg);
+	public void routePacket(byte[] pkg, InterASInterface receivingInterface);
 }

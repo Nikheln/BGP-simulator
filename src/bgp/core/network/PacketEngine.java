@@ -86,8 +86,7 @@ public class PacketEngine {
 		if (packet[8] == 0) {
 			throw new IllegalArgumentException("TTL is already zero");
 		}
-		
-		packet[8]--;
+		packet[8] = (byte) ((packet[8] - 1)&0xFFFF);
 
 		long checksum = calculateChecksum(packet);
 		packet[10] = (byte) (checksum >> 8);

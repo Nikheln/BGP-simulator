@@ -21,13 +21,13 @@ import bgp.core.network.Subnet;
 
 public class NetworkViewer {
 	
-	private enum LinkingOrder {
+	public enum LinkingOrder {
 		RING,
 		STAR,
 		RING_STAR,
 		RANDOM;
 		
-		private Queue<Integer> getLinkingOrder(int n) {
+		public Queue<Integer> getLinkingOrder(int n) {
 			Queue<Integer> list = new LinkedList<>();
 			
 			switch (this) {
@@ -60,9 +60,10 @@ public class NetworkViewer {
 				break;
 			case RANDOM:
 			default:
-				for (int i = 0; i < 4*n; i++) {
+				for (int i = 0; i < 2*n; i++) {
 					int id = (int) (Math.random()*n + 1);
 					list.add(id);
+					list.add((i%n)+1);
 				}
 			}
 
@@ -73,7 +74,8 @@ public class NetworkViewer {
 	public static void main(String[] args) {
 		SimulatorState.setTestingMode(true);
 
-		int amountOfRouters = 100;
+		int amountOfRouters = 30;
+		LinkingOrder networkType = LinkingOrder.RANDOM;
 		
 		Graph g = new SingleGraph("Router network, n=" + amountOfRouters);
 		g.setAttribute("layout.quality", 4);
@@ -90,7 +92,7 @@ public class NetworkViewer {
 			}
 		}
 
-		Queue<Integer> ids = LinkingOrder.RING_STAR.getLinkingOrder(amountOfRouters);
+		Queue<Integer> ids = networkType.getLinkingOrder(amountOfRouters);
 		
 		while (!ids.isEmpty()) {
 			int id1 = ids.poll();

@@ -6,6 +6,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import bgp.core.messages.pathattributes.AsPath;
+import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Subnet;
 
@@ -99,6 +101,30 @@ public class UpdateMessage extends BGPMessage {
 
 	public List<Subnet> getNLRI() {
 		return NLRI;
+	}
+	
+	public void changeNextHop(byte[] ownAddress) {
+		NextHop newNH = new NextHop(ownAddress);
+		PathAttribute oldNH = null;
+		for (PathAttribute p : pathAttributes) {
+			if (p instanceof NextHop) {
+				oldNH = p;
+			}
+		}
+		if (oldNH != null) {
+			pathAttributes.remove(oldNH);
+			pathAttributes.add(newNH);
+
+			this.pathAttributes.sort((p1,p2)-> p2.getTypeCode()-p1.getTypeCode());
+		}
+	}
+	
+	public void appendOwnId(int ownAsId) {
+		for (PathAttribute p : pathAttributes) {
+			if (p instanceof AsPath) {
+				((AsPath)p).appendId(ownAsId);
+			}
+		}
 	}
 
 	@Override

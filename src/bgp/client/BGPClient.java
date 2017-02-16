@@ -37,4 +37,9 @@ public class BGPClient implements PacketReceiver {
 		return receivedPacketCount;
 	}
 
+	@Override
+	public Address getAddress() {
+		return address;
+	}
+
 }

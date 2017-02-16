@@ -1,8 +1,15 @@
 package bgp.core.routing;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
+import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.pathattributes.AsPath;
+import bgp.core.messages.pathattributes.NextHop;
+import bgp.core.messages.pathattributes.Origin;
+import bgp.core.messages.pathattributes.PathAttribute;
+import bgp.core.network.Address;
 import bgp.core.network.Subnet;
 
 public class RoutingEngine {
@@ -21,6 +28,7 @@ public class RoutingEngine {
 	public RoutingEngine(int asId) {
 		this.subnetRootNode = new SubnetNode(Subnet.getSubnet(0, ~0));
 		this.asRootNode = new ASNode(asId);
+		
 		this.asNodes = new HashMap<>();
 		this.asNodes.put(asId, asRootNode);
 		
@@ -75,10 +83,15 @@ public class RoutingEngine {
 	
 	public void removeRoutingInfo(Subnet subnet, int asId) {
 		ASNode asNode = asNodes.get(asId);
-		SubnetNode current = getBestMatchingSubnetNode(subnet);
+		SubnetNode bestMatch = getBestMatchingSubnetNode(subnet);
 		
-		if (current.subnet.equals(subnet)) {
-			current.removeRouter(asNode);
+		if (bestMatch.subnet.equals(subnet)) {
+			bestMatch.removeRouter(asNode);
+			
+			// If the AS contains no subnets, assume it is dropped from the network
+			if (asNode.subnets.isEmpty()) {
+				removeRouter(asId);
+			}
 			
 			routingCache.clear();
 		}
@@ -89,8 +102,6 @@ public class RoutingEngine {
 			ASNode toRemove = this.asNodes.get(asId);
 			toRemove.delete();
 			this.asNodes.remove(asId);
-			
-			routingCache.clear();
 		}
 	}
 	
@@ -98,7 +109,6 @@ public class RoutingEngine {
 		if (!asNodes.containsKey(nearerAsId)) {
 			throw new IllegalArgumentException("AS " + nearerAsId + " has not been registered.");
 		}
-		
 		ASNode near = asNodes.get(nearerAsId);
 		ASNode far = asNodes.computeIfAbsent(furtherAsId, newId -> new ASNode(newId));
 		// Wherever you are...
@@ -130,19 +140,65 @@ public class RoutingEngine {
 	
 	private SubnetNode getBestMatchingSubnetNode(long address) {
 		SubnetNode current = subnetRootNode;
-		boolean hasSuitableChildren;
+		boolean hasChanged;
 		
 		do {
-			hasSuitableChildren = false;
+			hasChanged = false;
 			for (SubnetNode n : current.children) {
 				if (n.subnet.containsAddress(address)) {
 					current = n;
-					hasSuitableChildren = true;
+					hasChanged = true;
 					break;
 				}
 			}
-		} while (hasSuitableChildren);
-		
+		} while (hasChanged);
 		return current;
+	}
+
+	/**
+	 * Process an UPDATE message and update the routing information accordingly
+	 * @param um
+	 * @throws IllegalArgumentException
+	 */
+	public void handleUpdateMessage(UpdateMessage um) throws IllegalArgumentException {
+		// Try to extract the mandatory Path attributes
+		AsPath ap = null;
+		NextHop nh = null;
+		Origin o = null;
+		for (PathAttribute b : um.getPathAttributes()) {
+			if (b instanceof AsPath) {
+				ap = (AsPath) b;
+			} else if (b instanceof NextHop) {
+				nh = (NextHop) b;
+			} else if (b instanceof Origin) {
+				o = (Origin) b;
+			}
+		}
+		if (ap == null || nh == null || o == null) {
+			throw new IllegalArgumentException("Missing mandatory Path attributes");
+		}
+		
+		LinkedList<Integer> hops = ap.getIdSequence();
+		int originatingAsId = hops.getLast();
+		
+		// Remove the revoked subnets from the originating AS
+		for (Subnet s : um.getWithdrawnRoutes()) {
+			removeRoutingInfo(s, originatingAsId);
+		}
+		
+		// Add advertised connections based on the AS_PATH
+		int previousNode = asRootNode.asId;
+		for (Integer as : hops) {
+			if (!asNodes.containsKey(as)) {
+				asNodes.put(as, new ASNode(as));
+			}
+			addAsConnection(previousNode, as);
+			previousNode = as;
+		}
+		
+		// Add subnets reachable in the originating node
+		for (Subnet s : um.getNLRI()) {
+			addRoutingInfo(s, originatingAsId);
+		}
 	}
 }
