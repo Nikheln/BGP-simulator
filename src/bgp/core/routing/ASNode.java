@@ -108,7 +108,6 @@ public class ASNode {
 				bestSoFar = other;
 			}
 		}
-		System.out.println("Finding " + root.asId + " from " + this.asId + " via " + bestSoFar.asId + ", " + bestSoFar.bestDistance);
 		return bestSoFar.findBestNextHop(root);
 	}
 	

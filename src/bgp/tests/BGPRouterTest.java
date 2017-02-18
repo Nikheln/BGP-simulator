@@ -185,7 +185,6 @@ public class BGPRouterTest {
 		}
 		
 		NetworkViewer.showNetwork();
-		System.out.println("Network shown!");
 		try {
 			Thread.sleep(60000);
 		} catch (InterruptedException e) {
