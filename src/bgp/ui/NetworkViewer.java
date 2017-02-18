@@ -4,14 +4,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.SingleGraph;
-import org.graphstream.ui.view.Viewer;
 
 import bgp.core.ASConnection;
 import bgp.core.BGPRouter;
@@ -25,6 +28,7 @@ public class NetworkViewer {
 		RING,
 		STAR,
 		RING_STAR,
+		CLUSTERED,
 		RANDOM;
 		
 		public Queue<Integer> getLinkingOrder(int n) {
@@ -58,12 +62,47 @@ public class NetworkViewer {
 				list.add(n);
 				list.add(2);
 				break;
+			case CLUSTERED:
+				int c = (int) Math.floor(Math.sqrt(n));
+				List<Set<Integer>> clusters = new ArrayList<>();
+				Set<Integer> latest = null;
+				// Generate clusters
+				for (int i = 1; i <= n; i++) {
+					if ((i-1)%c == 0) {
+						latest = new HashSet<>();
+						clusters.add(latest);
+					}
+					latest.add(i);
+				}
+				
+				// Link the cluster members randomly
+				int addition = 0;
+				for (int i = 0; i < clusters.size(); i++) {
+					int size = clusters.get(i).size();
+					Queue<Integer> internalLinking = LinkingOrder.RANDOM.getLinkingOrder(size);
+					for (int j : internalLinking) {
+						list.add(addition + j);
+					}
+					addition += size;
+				}
+				
+				// Link clusters randomly
+				for (int i = 0; i < c*1.5; i++) {
+					List<Integer> group1 = new ArrayList<>(clusters.get((int)(Math.random()*c)));
+					List<Integer> group2 = group1;
+					while (group1 == group2) {
+						group2 = new ArrayList<>(clusters.get((int)(Math.random()*c)));
+					}
+					list.add(group1.get((int)(Math.random()*group1.size())));
+					list.add(group2.get((int)(Math.random()*group2.size())));
+				}
+				break;
 			case RANDOM:
 			default:
 				for (int id = 1; id <= n-2; id++) {
 					double rangeLen = (n-id)/2.0;
-					int otherId1 = (int) (id + 1 + Math.random()*(rangeLen));
-					int otherId2 = (int) (id + 1 + rangeLen + Math.random()*(rangeLen));
+					int otherId1 = (int) (id + 1 + Math.random()*rangeLen);
+					int otherId2 = (int) (id + 1 + rangeLen + Math.random()*rangeLen);
 					
 					list.add(id);
 					list.add(otherId1);
@@ -79,8 +118,8 @@ public class NetworkViewer {
 	public static void main(String[] args) {
 		SimulatorState.setTestingMode(true);
 
-		int amountOfRouters = 30;
-		LinkingOrder networkType = LinkingOrder.RANDOM;
+		int amountOfRouters = 100;
+		LinkingOrder networkType = LinkingOrder.CLUSTERED;
 		
 		Graph g = new SingleGraph("Router network, n=" + amountOfRouters);
 		g.setAttribute("layout.quality", 4);
