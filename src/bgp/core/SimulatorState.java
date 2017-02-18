@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import bgp.core.network.Address;
 
@@ -71,6 +72,10 @@ public class SimulatorState {
 	
 	public static BGPRouter getRouter(int bgpId) {
 		return routers.get(bgpId);
+	}
+	
+	public static Set<Integer> getReservedIds() {
+		return routers.keySet();
 	}
 	
 	public static void unregisterRouter(BGPRouter router) throws Exception {

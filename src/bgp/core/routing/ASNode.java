@@ -10,8 +10,7 @@ public class ASNode {
 	protected final int asId;
 	protected final int localPref;
 	
-	protected Set<ASNode> children;
-	protected Set<ASNode> parents;
+	protected Set<ASNode> peers;
 	protected Set<SubnetNode> subnets;
 	
 	/**
@@ -26,8 +25,7 @@ public class ASNode {
 	public ASNode(int asId, int localPref) {
 		this.asId = asId;
 		this.localPref = localPref;
-		this.children = new HashSet<>();
-		this.parents = new HashSet<>();
+		this.peers = new HashSet<>();
 		this.subnets = new HashSet<>();
 	}
 	
@@ -40,24 +38,16 @@ public class ASNode {
 		return asId;
 	}
 	
-	protected void linkChild(ASNode newChild) {
-		this.children.add(newChild);
-		newChild.addParent(this);
-	}
-	
 	protected void delete() {
-		for (ASNode child : children) {
-			child.deleteParent(this);
-			child.resetDistAndPref();
-		}
-		// Recalculate values in a separate loop to avoid relying on
-		// this node in case of inter-connected children
-		for (ASNode child : children) {
-			child.recalculateDistAndPref();
+		for (ASNode other : peers) {
+			this.peers.remove(other);
+			other.peers.remove(this);
+			other.resetDistAndPref();
 		}
 		
-		for (ASNode parent : parents) {
-			parent.children.remove(this);
+		for (ASNode other : peers) {
+			// Recalculate in a separate loop to avoid issues caused by old values
+			other.recalculateDistAndPref();
 		}
 		
 		for (SubnetNode node : subnets) {
@@ -73,17 +63,6 @@ public class ASNode {
 		this.subnets.remove(node);
 	}
 	
-	private void addParent(ASNode parent) {
-		if (!this.parents.contains(parent)) {
-			this.parents.add(parent);
-			this.recalculateDistAndPref();
-		}
-	}
-	
-	private void deleteParent(ASNode parent) {
-		this.parents.remove(parent);
-	}
-	
 	private void resetDistAndPref() {
 		// Reset best distance for recalculation
 		this.bestDistance = Consts.MAX_HOPS;
@@ -93,22 +72,19 @@ public class ASNode {
 	
 	private void recalculateDistAndPref() {
 		boolean changes = false;
-		for (ASNode parent : parents) {
-			if (parent.bestDistance + 1 < this.bestDistance) {
-				this.bestDistance = parent.bestDistance + 1;
+		for (ASNode other : peers) {
+			if (other.bestDistance + 1 < this.bestDistance) {
+				this.bestDistance = other.bestDistance + 1;
 				changes = true;
 			}
-			if (parent.bestPreference > this.bestPreference) {
-				this.bestPreference = parent.bestPreference;
+			if (other.bestPreference > this.bestPreference) {
+				this.bestPreference = other.bestPreference;
 				changes = true;
 			}
 		}
 		if (changes) {
-			for (ASNode child : children) {
-				child.resetDistAndPref();
-			}
-			for (ASNode child : children) {
-				child.recalculateDistAndPref();
+			for (ASNode other : peers) {
+				other.recalculateDistAndPref();
 			}
 		}
 	}
@@ -121,18 +97,27 @@ public class ASNode {
 		
 		ASNode bestSoFar = null;
 		
-		for (ASNode parent : parents) {
+		for (ASNode other : peers) {
 			// Stop recursion if at the second level of the graph
-			if (parent == root) {
+			if (other == root) {
 				return this;
 			}
 			if (bestSoFar == null
-					|| parent.bestPreference > bestSoFar.bestPreference
-					|| (parent.bestPreference == bestSoFar.bestPreference && parent.bestDistance < bestSoFar.bestDistance)) {
-				bestSoFar = parent;
+					|| other.bestPreference > bestSoFar.bestPreference
+					|| (other.bestPreference == bestSoFar.bestPreference && other.bestDistance < bestSoFar.bestDistance)) {
+				bestSoFar = other;
 			}
 		}
+		System.out.println("Finding " + root.asId + " from " + this.asId + " via " + bestSoFar.asId + ", " + bestSoFar.bestDistance);
 		return bestSoFar.findBestNextHop(root);
+	}
+	
+	public static void linkNodes(ASNode n1, ASNode n2) {
+		n1.peers.add(n2);
+		n2.peers.add(n1);
+		
+		n1.recalculateDistAndPref();
+		n2.recalculateDistAndPref();
 	}
 
 }

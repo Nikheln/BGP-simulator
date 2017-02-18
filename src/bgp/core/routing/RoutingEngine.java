@@ -1,15 +1,17 @@
 package bgp.core.routing;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.Address;
 import bgp.core.network.Subnet;
 
 public class RoutingEngine {
@@ -28,6 +30,7 @@ public class RoutingEngine {
 	public RoutingEngine(int asId) {
 		this.subnetRootNode = new SubnetNode(Subnet.getSubnet(0, ~0));
 		this.asRootNode = new ASNode(asId);
+		this.asRootNode.bestDistance = 0;
 		
 		this.asNodes = new HashMap<>();
 		this.asNodes.put(asId, asRootNode);
@@ -64,6 +67,31 @@ public class RoutingEngine {
 				.map(node -> node.findBestNextHop(asRootNode))
 				.map(bestNextNode -> bestNextNode.asId)
 				.orElse(-1));
+	}
+	
+	public void printRoutingTableInfo() {
+		System.out.println("=== Subnets ===");
+		Queue<SubnetNode> nodes = new LinkedList<>();
+		nodes.add(subnetRootNode);
+		while (!nodes.isEmpty()) {
+			System.out.println(nodes.peek().subnet + ", size " + nodes.peek().asSet.size());
+			nodes.addAll(nodes.poll().children);
+		}
+		
+		System.out.println("=== Routers ===");
+		Queue<ASNode> asNodes = new LinkedList<>();
+		Set<ASNode> processedNodes = new HashSet<>();
+		asNodes.add(asRootNode);
+		while (!asNodes.isEmpty()) {
+			ASNode n = asNodes.poll();
+			if (processedNodes.contains(n)) {
+				continue;
+			}
+			processedNodes.add(n);
+			System.out.println(n.asId);
+			asNodes.addAll(n.peers);
+		}
+		System.out.println("=== ===");
 	}
 	
 	public void addRoutingInfo(Subnet subnet, int asId) {
@@ -112,7 +140,8 @@ public class RoutingEngine {
 		ASNode near = asNodes.get(nearerAsId);
 		ASNode far = asNodes.computeIfAbsent(furtherAsId, newId -> new ASNode(newId));
 		// Wherever you are...
-		near.linkChild(far);
+		
+		ASNode.linkNodes(near, far);
 		
 		routingCache.clear();
 	}
@@ -189,9 +218,6 @@ public class RoutingEngine {
 		// Add advertised connections based on the AS_PATH
 		int previousNode = asRootNode.asId;
 		for (Integer as : hops) {
-			if (!asNodes.containsKey(as)) {
-				asNodes.put(as, new ASNode(as));
-			}
 			addAsConnection(previousNode, as);
 			previousNode = as;
 		}

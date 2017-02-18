@@ -60,10 +60,15 @@ public class NetworkViewer {
 				break;
 			case RANDOM:
 			default:
-				for (int i = 0; i < 2*n; i++) {
-					int id = (int) (Math.random()*n + 1);
+				for (int id = 1; id <= n-2; id++) {
+					double rangeLen = (n-id)/2.0;
+					int otherId1 = (int) (id + 1 + Math.random()*(rangeLen));
+					int otherId2 = (int) (id + 1 + rangeLen + Math.random()*(rangeLen));
+					
 					list.add(id);
-					list.add((i%n)+1);
+					list.add(otherId1);
+					list.add(id);
+					list.add(otherId2);
 				}
 			}
 
@@ -132,7 +137,32 @@ public class NetworkViewer {
 		
 		SimulatorState.resetState();
 	
-		Viewer v = g.display();
+		g.display();
+	}
+	
+	public static void showNetwork() {
+		Graph g = new SingleGraph("Router network");
+		g.setAttribute("layout.quality", 4);
+		g.setAttribute("ui.antialias", 1);
+		
+		for (Integer asId : SimulatorState.getReservedIds()) {
+			Node n = g.addNode(Integer.toString(asId));
+			n.addAttribute("ui.label", Integer.toString(asId));
+			n.setAttribute("layout.weight", 2);
+		}
+		
+		for (Integer asId : SimulatorState.getReservedIds()) {
+			BGPRouter r = SimulatorState.getRouter(asId);
+			for (Integer other : r.getConnectedRouterIds()) {
+				if (g.getEdge(other + "-" + asId) != null) {
+					// Edge already added from other router
+					continue;
+				}
+				g.addEdge(asId + "-" + other, Integer.toString(asId), Integer.toString(other));
+			}
+		}
+		
+		g.display();
 	}
 	
 }

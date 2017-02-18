@@ -23,6 +23,7 @@ import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Subnet;
+import bgp.ui.NetworkViewer;
 import bgp.ui.NetworkViewer.LinkingOrder;
 
 public class BGPRouterTest {
@@ -120,8 +121,8 @@ public class BGPRouterTest {
 	public void testUpdateMessageForwarding() {
 		SimulatorState.resetState();
 		SimulatorState.setTestingMode(true);
-		int amountOfRouters = 2;
-		LinkingOrder o = LinkingOrder.RING_STAR;
+		int amountOfRouters = 15;
+		LinkingOrder o = LinkingOrder.RANDOM;
 		
 		for (int i = 1; i <= amountOfRouters; i++) {
 			 try {
@@ -165,6 +166,7 @@ public class BGPRouterTest {
 		pathAttributes.add(new NextHop(new byte[]{0,0,0,0}));
 		pathAttributes.add(new AsPath(new ArrayList<>()));
 		List<Subnet> NLRI = new ArrayList<>();
+		NLRI.add(Subnet.getSubnet("11.0.0.0/8"));
 		
 		UpdateMessage um = new UpdateMessage(withdrawnRoutes, pathAttributes, NLRI);
 		BGPRouter r1 = SimulatorState.getRouter(1);
@@ -181,6 +183,16 @@ public class BGPRouterTest {
 		for (int i = 2; i <= amountOfRouters; i++) {
 			assertNotEquals(-1, SimulatorState.getRouter(i).getRoutingEngine().decidePath(c1.getAddress().getAddress()));
 		}
+		
+		NetworkViewer.showNetwork();
+		System.out.println("Network shown!");
+		try {
+			Thread.sleep(60000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 }
