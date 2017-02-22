@@ -3,7 +3,9 @@ package bgp.core.routing;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 
@@ -16,26 +18,22 @@ import bgp.core.network.Subnet;
 
 public class RoutingEngine {
 	
+	private final int asId;
+	
 	private final SubnetNode subnetRootNode;
-	
-	private final ASNode asRootNode;
-	
-	private final Map<Integer, ASNode> asNodes;
 	
 	/**
 	 * Cache used to get previously used values. Cleared every time routing info changes.
 	 */
 	private final Map<Subnet, Integer> routingCache;
 	
+	private final Set<AsSequence> paths;
+	
 	public RoutingEngine(int asId) {
-		this.subnetRootNode = new SubnetNode(Subnet.getSubnet(0, ~0));
-		this.asRootNode = new ASNode(asId);
-		this.asRootNode.bestDistance = 0;
-		
-		this.asNodes = new HashMap<>();
-		this.asNodes.put(asId, asRootNode);
-		
+		this.asId = asId;
+		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		this.routingCache = new HashMap<>();
+		this.paths = new HashSet<>();
 	}
 	
 	/**
@@ -51,21 +49,20 @@ public class RoutingEngine {
 	public int decidePath(long address) {
 		SubnetNode subnetNode = getBestMatchingSubnetNode(address);
 		return routingCache.computeIfAbsent(subnetNode.subnet, uncachedSubnet -> 
-				subnetNode.asSet
+				subnetNode.paths
 				.stream()
 				// Sort in case of multiple possible AS's
 				.sorted((as1, as2) -> {
-					if (as1.bestPreference != as2.bestPreference) {
-						return as2.bestPreference - as1.bestPreference;
-					} else if (as1.bestDistance != as2.bestDistance) {
-						return as1.bestDistance - as2.bestDistance;
+					if (as1.getLocalPref() != as2.getLocalPref()) {
+						return as2.getLocalPref() - as1.getLocalPref();
+					} else if (as1.getLength() != as2.getLength()) {
+						return as1.getLength() - as2.getLength();
 					} else {
-						return as1.asId - as2.asId;
+						return as1.getFirstHop() - as2.getFirstHop();
 					}
 				})
 				.findFirst()
-				.map(node -> node.findBestNextHop(asRootNode))
-				.map(bestNextNode -> bestNextNode.asId)
+				.map(sequence -> sequence.getFirstHop())
 				.orElse(-1));
 	}
 	
@@ -74,74 +71,22 @@ public class RoutingEngine {
 		Queue<SubnetNode> nodes = new LinkedList<>();
 		nodes.add(subnetRootNode);
 		while (!nodes.isEmpty()) {
-			System.out.println(nodes.peek().subnet + ", size " + nodes.peek().asSet.size());
+			System.out.println(nodes.peek().subnet + ", amount of paths: " + nodes.peek().paths.size());
 			nodes.addAll(nodes.poll().children);
-		}
-		
-		System.out.println("=== Routers ===");
-		Queue<ASNode> asNodes = new LinkedList<>();
-		Set<ASNode> processedNodes = new HashSet<>();
-		asNodes.add(asRootNode);
-		while (!asNodes.isEmpty()) {
-			ASNode n = asNodes.poll();
-			if (processedNodes.contains(n)) {
-				continue;
-			}
-			processedNodes.add(n);
-			System.out.println(n.asId);
-			asNodes.addAll(n.peers);
 		}
 		System.out.println("=== ===");
 	}
 	
-	public void addRoutingInfo(Subnet subnet, int asId) {
-		ASNode asNode = asNodes.get(asId);
+	public void addRoutingInfo(Subnet subnet, AsSequence asSeq) {
+		
 		SubnetNode parent = getBestMatchingSubnetNode(subnet);
 		
 		if (parent.subnet.equals(subnet)) {
-			parent.linkContainingAS(asNode);
+			parent.addPath(asSeq);
 		} else {
-			SubnetNode newNode = new SubnetNode(subnet);
-			newNode.linkContainingAS(asNode);
-			parent.linkChildNode(newNode);
+			SubnetNode newNode = new SubnetNode(parent, subnet);
+			newNode.addPath(asSeq);
 		}
-		
-		routingCache.clear();
-	}
-	
-	public void removeRoutingInfo(Subnet subnet, int asId) {
-		ASNode asNode = asNodes.get(asId);
-		SubnetNode bestMatch = getBestMatchingSubnetNode(subnet);
-		
-		if (bestMatch.subnet.equals(subnet)) {
-			bestMatch.removeRouter(asNode);
-			
-			// If the AS contains no subnets, assume it is dropped from the network
-			if (asNode.subnets.isEmpty()) {
-				removeRouter(asId);
-			}
-			
-			routingCache.clear();
-		}
-	}
-	
-	public void removeRouter(int asId) {
-		if (this.asNodes.containsKey(asId)) {
-			ASNode toRemove = this.asNodes.get(asId);
-			toRemove.delete();
-			this.asNodes.remove(asId);
-		}
-	}
-	
-	public void addAsConnection(int nearerAsId, int furtherAsId) throws IllegalArgumentException {
-		if (!asNodes.containsKey(nearerAsId)) {
-			throw new IllegalArgumentException("AS " + nearerAsId + " has not been registered.");
-		}
-		ASNode near = asNodes.get(nearerAsId);
-		ASNode far = asNodes.computeIfAbsent(furtherAsId, newId -> new ASNode(newId));
-		// Wherever you are...
-		
-		ASNode.linkNodes(near, far);
 		
 		routingCache.clear();
 	}
@@ -208,23 +153,36 @@ public class RoutingEngine {
 		}
 		
 		LinkedList<Integer> hops = ap.getIdSequence();
-		int originatingAsId = hops.getLast();
+		AsSequence matchingSequence = getMatchingSequence(hops);
 		
 		// Remove the revoked subnets from the originating AS
-		for (Subnet s : um.getWithdrawnRoutes()) {
-			removeRoutingInfo(s, originatingAsId);
-		}
+		
 		
 		// Add advertised connections based on the AS_PATH
-		int previousNode = asRootNode.asId;
-		for (Integer as : hops) {
-			addAsConnection(previousNode, as);
-			previousNode = as;
-		}
+		
 		
 		// Add subnets reachable in the originating node
-		for (Subnet s : um.getNLRI()) {
-			addRoutingInfo(s, originatingAsId);
+		
+	}
+	
+	private AsSequence getMatchingSequence(List<Integer> hops) {
+		Optional<AsSequence> ms = paths.stream().filter(path -> {
+			if (hops.size() != path.getLength()) {
+				return false;
+			}
+			for (int i = 0; i < path.getLength(); i++) {
+				if (hops.get(i) != path.getHop(i)) {
+					return false;
+				}
+			}
+			return true;
+		}).findAny();
+		
+		if (ms.isPresent()) {
+			return ms.get();
+		} else {
+			AsSequence s = new AsSequence(hops);
+			return s;
 		}
 	}
 }

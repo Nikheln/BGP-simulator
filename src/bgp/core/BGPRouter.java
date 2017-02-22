@@ -15,9 +15,13 @@ import java.util.concurrent.Executors;
 import bgp.core.messages.BGPMessage;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
+import bgp.core.messages.NotificationMessage.MessageHeaderError;
 import bgp.core.messages.OpenMessage;
 import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.UpdateMessageBuilder;
 import bgp.core.messages.pathattributes.AsPath;
+import bgp.core.messages.pathattributes.NextHop;
+import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
@@ -26,6 +30,7 @@ import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
+import bgp.core.routing.AsSequence;
 import bgp.core.routing.RoutingEngine;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
@@ -75,7 +80,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
 		this.routingEngine = new RoutingEngine(this.id);
 		// Register this router's subnet
-		this.routingEngine.addRoutingInfo(this.subnet, this.id);
+		this.routingEngine.addRoutingInfo(this.subnet, new AsSequence(new int[0]));
 	}
 
 	@Override
@@ -178,7 +183,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					
 					forwardUpdateMessage(um);
 				} else {
-					
+					connections.get(senderId).raiseNotification(
+							NotificationMessage.getMessageHeaderError(
+									MessageHeaderError.BAD_MESSAGE_TYPE));
 				}
 				
 			} catch (IllegalArgumentException e) {
@@ -206,6 +213,35 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				sendViaInterface(umBytes, asId);
 			}
 		});
+	}
+	
+	public void removeConnection(ASConnection toRemove) {
+		int toRemoveId = getIdForConnection(toRemove);
+		
+		// Build an UPDATE message
+		UpdateMessageBuilder b = new UpdateMessageBuilder();
+		b.addPathAttribute(new AsPath(new ArrayList<>()))
+		 .addPathAttribute(new Origin(this.id))
+		 .addPathAttribute(new NextHop(new byte[4]));
+		for (Subnet s : routingEngine.getRoutingInfo(toRemoveId)) {
+			b.addWithdrawnRoutes(s);
+		}
+		UpdateMessage um = b.build();
+		
+		routingEngine.removeAsConnection(this.id, toRemoveId);
+		connections.remove(toRemoveId);
+		
+		// Send an UPDATE message to peers
+		forwardUpdateMessage(um);
+	}
+	
+	private int getIdForConnection(ASConnection conn) {
+		return connections.entrySet()
+			.stream()
+			.filter(entry -> entry.getValue().equals(conn))
+			.map(Map.Entry::getKey)
+			.findAny()
+			.orElse(-1);
 	}
 	
 	public ASConnection getConnectionFor(int otherId) {
@@ -250,7 +286,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		packetProcessingThread.shutdownNow();
 		maintenanceThread.shutdownNow();
 		connectionKeepaliveTimer.cancel();
-		
 		// Inform clients
 		
 		// Inform peers

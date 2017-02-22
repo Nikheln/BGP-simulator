@@ -1,9 +1,23 @@
 package bgp.core.messages;
 
+import java.util.Arrays;
+
 public class NotificationMessage extends BGPMessage {
 	
 	protected NotificationMessage(byte[] messageContent) {
-		
+		code = messageContent[0]&0xFF;
+		subcode = messageContent[1]&0xFF;
+		data = Arrays.copyOfRange(messageContent, 2, messageContent.length);
+	}
+	
+	private final int code;
+	private final int subcode;
+	private final byte[] data;
+	
+	private NotificationMessage(int code, int subcode) {
+		this.code = code;
+		this.subcode = subcode;
+		this.data = new byte[0];
 	}
 
 	@Override
@@ -13,8 +27,15 @@ public class NotificationMessage extends BGPMessage {
 
 	@Override
 	protected byte[] getBody() {
-		// TODO Auto-generated method stub
-		return null;
+		byte[] body = new byte[2+data.length];
+		int index = 0;
+		body[index++] = (byte) (code&0xFF);
+		body[index++] = (byte) (subcode&0xFF);
+		for (byte b : data) {
+			body[index++] = b;
+		}
+		
+		return body;
 	}
 	
 	public enum ErrorCode {
@@ -75,7 +96,30 @@ public class NotificationMessage extends BGPMessage {
 		private UpdateMessageError(int subcode) {
 			this.subcode = (byte) subcode;
 		}
-		
+	}
+	
+	public static NotificationMessage getMessageHeaderError(MessageHeaderError e) {
+		return new NotificationMessage(ErrorCode.MESSAGE_HEADER_ERROR.code, e.subcode);
+	}
+	
+	public static NotificationMessage getOpenMessageError(OpenMessageError e) {
+		return new NotificationMessage(ErrorCode.OPEN_MESSAGE_ERROR.code, e.subcode);
+	}
+	
+	public static NotificationMessage getUpdateMessageError(UpdateMessageError e) {
+		return new NotificationMessage(ErrorCode.UPDATE_MESSAGE_ERROR.code, e.subcode);
+	}
+	
+	public static NotificationMessage getHoldTimeExpiredError() {
+		return new NotificationMessage(ErrorCode.HOLD_TIMER_EXPIRED.code, 0);
+	}
+	
+	public static NotificationMessage getFiniteStateMachineError() {
+		return new NotificationMessage(ErrorCode.FINITE_STATE_MACHINE_ERROR.code, 0);
+	}
+	
+	public static NotificationMessage getCeaseError() {
+		return new NotificationMessage(ErrorCode.CEASE.code, 0);
 	}
 
 }

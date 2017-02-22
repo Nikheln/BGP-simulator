@@ -6,6 +6,7 @@ import java.util.TimerTask;
 import bgp.core.fsm.State;
 import bgp.core.fsm.StateMachine;
 import bgp.core.messages.KeepaliveMessage;
+import bgp.core.messages.NotificationMessage;
 import bgp.core.messages.OpenMessage;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
@@ -20,6 +21,8 @@ public class ASConnection {
 	private boolean hasReceivedKeepalive;
 	
 	private int retryCounter;
+	
+	private TimerTask keepaliveChecking, keepaliveSending;
 	
 	private Address neighbourAddress;
 	
@@ -64,8 +67,7 @@ public class ASConnection {
 		if (fsm.getCurrentState().equals(State.OPEN_SENT)
 				|| fsm.getCurrentState().equals(State.CONNECT)) {
 			neighbourAddress = Address.getAddress(m.getBgpId());
-			// Start checking that KEEPALIVE messages have come
-			handler.registerKeepaliveTask(new TimerTask() {
+			this.keepaliveChecking = new TimerTask() {
 
 				@Override
 				public void run() {
@@ -79,10 +81,9 @@ public class ASConnection {
 					}
 				}
 				
-			}, m.getHoldTime(), m.getHoldTime());
-
-			// Start sending KEEPALIVE messages
-			handler.registerKeepaliveTask(new TimerTask() {
+			};
+			
+			this.keepaliveSending = new TimerTask() {
 
 				@Override
 				public void run() {
@@ -96,7 +97,12 @@ public class ASConnection {
 					}
 				}
 				
-			}, 20, SimulatorState.testingMode ? 100 : Consts.DEFAULT_KEEPALIVE_INTERVAL);
+			};
+
+			// Start checking that KEEPALIVE messages have come
+			handler.registerKeepaliveTask(keepaliveChecking, m.getHoldTime(), m.getHoldTime());
+			// Start sending KEEPALIVE messages
+			handler.registerKeepaliveTask(keepaliveSending, 20, SimulatorState.testingMode ? 100 : Consts.DEFAULT_KEEPALIVE_INTERVAL);
 			
 			fsm.changeState(State.OPEN_CONFIRM);
 		}
@@ -129,6 +135,25 @@ public class ASConnection {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	public void raiseNotification(NotificationMessage m) {
+		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
+		sendPacket(message);
+		closeConnection();
+	}
+	
+	public void closeConnection() {
+		try {
+			adapter.close();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		this.keepaliveSending.cancel();
+		this.keepaliveChecking.cancel();
+		this.fsm.changeState(State.IDLE);
+		handler.removeConnection(this);
 	}
 
 }

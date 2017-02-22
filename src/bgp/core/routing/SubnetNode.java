@@ -1,74 +1,64 @@
 package bgp.core.routing;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import bgp.core.network.Subnet;
 
 public class SubnetNode {
 	
-	protected SubnetNode parent;
-	protected final List<SubnetNode> children;
-	
 	protected final Subnet subnet;
 	
-	protected final Set<ASNode> asSet;
+	protected SubnetNode parent;
+	protected final Set<SubnetNode> children;
 	
+	// Set of paths leading to this subnet
+	protected final Set<AsSequence> paths;
 	
 	public SubnetNode(SubnetNode parent, Subnet subnet) {
-		this(subnet);
-		this.parent.linkChildNode(this);
-	}
-	
-	public SubnetNode(Subnet subnet) {
+		this.parent = parent;
 		this.subnet = subnet;
-		this.asSet = new HashSet<>();
-		this.children = new ArrayList<>();
+		this.children = new HashSet<>();
+		this.paths = new HashSet<>();
+		
+		if (parent != null) {
+			parent.addChild(this);
+		}
 	}
 	
-	/**
-	 * Delete this Node from the graph, linking this' {@link #children} to {@link #parent}
-	 */
-	public void delete() {
-		for (SubnetNode n : children) {
-			parent.linkChildNode(n);
-		}
-		for (ASNode n : asSet) {
-			n.removeContainedSubnet(this);
-		}
-		children.clear();
-		asSet.clear();
+	public void setParent(SubnetNode parent) {
+		this.parent = parent;
 	}
 	
-	/**
-	 * Delete information about routing packets into this subnet towards the specified BGP router.
-	 * If this empties the router list, delete this node.
-	 * @param bgpId
-	 */
-	public void removeRouter(ASNode bgpId) {
-		asSet.remove(bgpId);
-		bgpId.removeContainedSubnet(this);
-		if (asSet.isEmpty()) {
+	public void addChild(SubnetNode child) {
+		children.add(child);
+	}
+	
+	public void addPath(AsSequence seq) {
+		this.paths.add(seq);
+		seq.addSubnetNode(this);
+	}
+	
+	public void deletePath(AsSequence seq) {
+		paths.remove(seq);
+		if (paths.isEmpty()) {
 			delete();
 		}
 	}
 	
-	/**
-	 * Link a new child node to this node, setting this to child's
-	 * parent and adding child to this' list of children.
-	 * @param child
-	 */
-	public void linkChildNode(SubnetNode child) {
-		children.add(child);
-		child.parent = this;
+	public Set<AsSequence> getPaths() {
+		return paths;
 	}
 	
-	public void linkContainingAS(ASNode node) {
-		asSet.add(node);
-		node.addContainedSubnet(this);
+	public void delete() {
+		for (SubnetNode child : children) {
+			child.setParent(parent);
+		}
 	}
 	
-	
+	@Override
+	public int hashCode() {
+		return subnet.hashCode();
+	}
+
 }

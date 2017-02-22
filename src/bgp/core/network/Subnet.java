@@ -51,7 +51,7 @@ public class Subnet extends Address {
 	
 	@Override
 	public int hashCode() {
-		return (int) (address + bitmaskLength);
+		return (int) (address*100 + bitmaskLength);
 	}
 	
 	public int getBitmaskLength() {
