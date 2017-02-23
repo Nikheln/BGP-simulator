@@ -2,6 +2,7 @@ package bgp.core;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +31,6 @@ import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
-import bgp.core.routing.PathSelection;
 import bgp.core.routing.RoutingEngine;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
@@ -80,7 +80,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
 		this.routingEngine = new RoutingEngine(this.id);
 		// Register this router's subnet
-		this.routingEngine.addRoutingInfo(this.subnet, new PathSelection(new int[0]));
+		this.routingEngine.addRoutingInfo(this.subnet, 1, 0, 200);
 	}
 
 	@Override
@@ -100,7 +100,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
-			int nextHop = routingEngine.decidePath(address);
+			int nextHop = routingEngine.decidePath(address, true);
 			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
@@ -194,7 +194,35 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		});
 	}
 	
+	/**
+	 * Send all routing info to a peer after a new connection has been established.
+	 * To avoid all routes getting path length 1, prefixes of same length are sent
+	 * in a message padded to correct length
+	 * @param recipientAsId
+	 */
+	public void sendRoutingInformation(int recipientAsId) {
+		ASConnection conn = connections.get(recipientAsId);
+		Address ownAddress = conn.getAdapter().getOwnAddress();
+		Address neighbourAddress = conn.getNeighbourAddress();
+		UpdateMessage um = new UpdateMessageBuilder()
+				.addPathAttribute(new AsPath(Arrays.asList(id)))
+				.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
+				.addPathAttribute(new Origin(1))
+				.build();
+		
+		List<byte[]> ums = routingEngine.generateInitialUpdateMessages(um);
+		
+		for (byte[] msg : ums) {
+			conn.sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, msg));
+		}
+	}
+	
 	public void forwardUpdateMessage(UpdateMessage um) {
+		if (um.getWithdrawnRoutes().isEmpty() && um.getNLRI().isEmpty()) {
+			// No information to forward
+			return;
+		}
+		
 		List<Integer> visitedIds = new ArrayList<>();
 		for (PathAttribute p : um.getPathAttributes()) {
 			if (p instanceof AsPath) {
@@ -223,16 +251,18 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		b.addPathAttribute(new AsPath(new ArrayList<>()))
 		 .addPathAttribute(new Origin(this.id))
 		 .addPathAttribute(new NextHop(new byte[4]));
-		for (Subnet s : routingEngine.getRoutingInfo(toRemoveId)) {
+		for (Subnet s : routingEngine.getSubnetsBehind(toRemoveId)) {
 			b.addWithdrawnRoutes(s);
 		}
 		UpdateMessage um = b.build();
 		
-		routingEngine.removeAsConnection(this.id, toRemoveId);
-		connections.remove(toRemoveId);
-		
+		// Revoke all connections via the broken link
+		routingEngine.handleUpdateMessage(um);
 		// Send an UPDATE message to peers
 		forwardUpdateMessage(um);
+		
+		
+		connections.remove(toRemoveId);
 	}
 	
 	private int getIdForConnection(ASConnection conn) {
@@ -311,6 +341,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		ASConnection conn2 = router2.getConnectionFor(router1.id);
 		InterASInterface adapter2 = conn2.getAdapter();
 		
+		// Connect the "cables"
 		adapter1.connectNeighbourOutputStream(adapter2);
 		adapter2.connectNeighbourOutputStream(adapter1);
 		
