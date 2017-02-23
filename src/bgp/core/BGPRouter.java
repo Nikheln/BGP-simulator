@@ -30,7 +30,7 @@ import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
-import bgp.core.routing.AsSequence;
+import bgp.core.routing.PathSelection;
 import bgp.core.routing.RoutingEngine;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
@@ -80,7 +80,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
 		this.routingEngine = new RoutingEngine(this.id);
 		// Register this router's subnet
-		this.routingEngine.addRoutingInfo(this.subnet, new AsSequence(new int[0]));
+		this.routingEngine.addRoutingInfo(this.subnet, new PathSelection(new int[0]));
 	}
 
 	@Override
