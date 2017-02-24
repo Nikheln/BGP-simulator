@@ -16,10 +16,11 @@ import java.util.concurrent.Executors;
 import bgp.core.messages.BGPMessage;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
-import bgp.core.messages.NotificationMessage.MessageHeaderError;
 import bgp.core.messages.OpenMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.UpdateMessageBuilder;
+import bgp.core.messages.notificationexceptions.NotificationException;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
@@ -84,7 +85,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	}
 
 	@Override
-	public void routePacket(byte[] packet, InterASInterface receivingInterface) {
+	public void routePacket(byte[] packet, ASConnection receivingConnection) {
 		packetProcessingThread.execute(() -> {
 			if (!PacketEngine.validatePacketHeader(packet)) {
 				// Drop packet if checksum doesn't match
@@ -106,10 +107,13 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
 				if (rec != null) {
+					if (rec == this) {
+						receivingConnection.raiseKeepaliveFlag();
+					}
 					rec.receivePacket(packet);
 				}
 			} else if (connections.containsKey(nextHop)
-					&& !connections.get(nextHop).equals(receivingInterface)) {
+					&& !connections.get(nextHop).equals(receivingConnection)) {
 				// Packet should be forwarded elsewhere
 				// If preferred route is the router that sent the package,
 				// drop it to avoid bouncing back and forth
@@ -183,14 +187,14 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					routingEngine.handleUpdateMessage(um);
 					
 					forwardUpdateMessage(um);
-				} else {
-					connections.get(senderId).raiseNotification(
-							NotificationMessage.getMessageHeaderError(
-									MessageHeaderError.BAD_MESSAGE_TYPE));
 				}
 				
-			} catch (IllegalArgumentException e) {
+			} catch (NotificationException e) {
 				// Invalid BGP message received OR not a BGP message altogether
+				if (connections.containsKey(senderId)) {
+					connections.get(senderId).raiseNotification(
+							e.buildNotification());	
+				}
 			}
 		});
 	}
@@ -205,11 +209,15 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		ASConnection conn = connections.get(recipientAsId);
 		Address ownAddress = conn.getAdapter().getOwnAddress();
 		Address neighbourAddress = conn.getNeighbourAddress();
-		UpdateMessage um = new UpdateMessageBuilder()
-				.addPathAttribute(new AsPath(Arrays.asList(id)))
-				.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
-				.addPathAttribute(new Origin(1))
-				.build();
+		UpdateMessage um = null;
+		try {
+			um = new UpdateMessageBuilder()
+					.addPathAttribute(new AsPath(Arrays.asList(id)))
+					.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
+					.addPathAttribute(new Origin(1))
+					.build();
+		} catch (UpdateMessageException e) {
+		}
 		
 		List<byte[]> ums = routingEngine.generateInitialUpdateMessages(um);
 		
@@ -247,23 +255,30 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	public void removeConnection(ASConnection toRemove) {
 		int toRemoveId = getIdForConnection(toRemove);
 		
-		// Build an UPDATE message to inform neighbours
-		UpdateMessageBuilder b = new UpdateMessageBuilder();
-		b.addPathAttribute(new AsPath(new ArrayList<>()))
-		 .addPathAttribute(new Origin(this.id))
-		 .addPathAttribute(new NextHop(new byte[4]));
-		for (Subnet s : routingEngine.getSubnetsBehind(toRemoveId)) {
-			b.addWithdrawnRoutes(s);
+		try {
+			// Build an UPDATE message to inform neighbours
+			UpdateMessageBuilder b = new UpdateMessageBuilder();
+			
+			b.addPathAttribute(new AsPath(new ArrayList<>()))
+			 .addPathAttribute(new Origin(this.id))
+			 .addPathAttribute(new NextHop(new byte[4]));
+
+			for (Subnet s : routingEngine.getSubnetsBehind(toRemoveId)) {
+				b.addWithdrawnRoutes(s);
+			}
+			UpdateMessage um = b.build();
+			
+			// Revoke all connections via the broken link
+			routingEngine.handleUpdateMessage(um);
+
+			// Send an UPDATE message to peers
+			forwardUpdateMessage(um);
+		} catch (UpdateMessageException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			connections.remove(toRemoveId);	
 		}
-		UpdateMessage um = b.build();
-		
-		// Revoke all connections via the broken link
-		routingEngine.handleUpdateMessage(um);
-		// Send an UPDATE message to peers
-		forwardUpdateMessage(um);
-		
-		
-		connections.remove(toRemoveId);
 	}
 	
 	private int getIdForConnection(ASConnection conn) {

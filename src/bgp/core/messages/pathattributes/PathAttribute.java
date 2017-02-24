@@ -1,5 +1,8 @@
 package bgp.core.messages.pathattributes;
 
+import bgp.core.messages.NotificationMessage.UpdateMessageError;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
+
 public abstract class PathAttribute {
 	
 	public abstract byte getTypeCode();
@@ -97,9 +100,9 @@ public abstract class PathAttribute {
 		return input.getBody();
 	}
 	
-	public static PathAttribute deserialize(byte[] input) throws IllegalArgumentException {
+	public static PathAttribute deserialize(byte[] input) throws UpdateMessageException {
 		if (input == null || input.length < 3) {
-			throw new IllegalArgumentException("Path attribute should be at least 3 octets.");
+			throw new UpdateMessageException(UpdateMessageError.ATTRIBUTE_LENGTH_ERROR);
 		}
 		
 		switch(input[1]) {
@@ -119,7 +122,7 @@ public abstract class PathAttribute {
 			// ATOMIC_AGGREGATE
 			// Not implemented yet
 		}
-		throw new IllegalArgumentException("Attribute of type " + input[1] + " could not be parsed");
+		throw new UpdateMessageException(UpdateMessageError.OPTIONAL_ATTRIBUTE_ERROR);
 	}
 	
 }

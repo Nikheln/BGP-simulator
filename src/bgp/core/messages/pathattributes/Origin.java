@@ -1,5 +1,8 @@
 package bgp.core.messages.pathattributes;
 
+import bgp.core.messages.NotificationMessage.UpdateMessageError;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
+
 public class Origin extends PathAttribute {
 	
 	private final int originValue;
@@ -12,19 +15,19 @@ public class Origin extends PathAttribute {
 	 * 1. EGP
 	 * 2. Incomplete
 	 */
-	public Origin(int originValue) throws IllegalArgumentException {
+	public Origin(int originValue) throws UpdateMessageException {
 		super(ONE, ONE, ZERO, ZERO);
 		if (originValue < 0 || originValue > 2) {
-			throw new IllegalArgumentException("Origin value must be in range 0..2");
+			throw new UpdateMessageException(UpdateMessageError.INVALID_ORIGIN_ATTRIBUTE);
 		}
 		this.originValue = originValue;
 	}
 	
-	protected Origin(byte[] input) throws IllegalArgumentException {
+	protected Origin(byte[] input) throws UpdateMessageException {
 		super(input[0]);
 		this.originValue = input[input.length-1];
 		if (this.originValue < 0 || this.originValue > 2) {
-			throw new IllegalArgumentException("Origin value must be in range 0..2");
+			throw new UpdateMessageException(UpdateMessageError.INVALID_ORIGIN_ATTRIBUTE);
 		}
 	}
 	
@@ -42,6 +45,10 @@ public class Origin extends PathAttribute {
 	@Override
 	public byte[] getTypeBody() {
 		return new byte[]{(byte) originValue};
+	}
+	
+	public int getOriginValue() {
+		return originValue;
 	}
 
 }

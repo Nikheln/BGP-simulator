@@ -2,7 +2,9 @@ package bgp.core.messages.pathattributes;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
+
+import bgp.core.messages.NotificationMessage.UpdateMessageError;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 
 /**
  * In its current state, the system only support AS_SEQUENCEs shorter than 255 hops
@@ -26,13 +28,13 @@ public class AsPath extends PathAttribute {
 		}
 	}
 	
-	protected AsPath(byte[] input) throws IllegalArgumentException {
+	protected AsPath(byte[] input) throws UpdateMessageException {
 		super(input[0]);
 		int headerLength = 3 + extended;
 		
 		segmentType = input[headerLength];
 		if (segmentType != 1 && segmentType != 2) {
-			throw new IllegalArgumentException("Segment type must be 1 (AS_SET) or 2 (AS_SEQUENCE)");
+			throw new UpdateMessageException(UpdateMessageError.MALFORMED_AS_PATH);
 		}
 		idSequence = new LinkedList<>();
 		for (int i = 0; i < input[headerLength + 1]; i++) {
@@ -40,7 +42,7 @@ public class AsPath extends PathAttribute {
 				idSequence.add((input[headerLength + 2 + 2*i] << 8)
 						+ (input[headerLength + 2 + 2*i + 1]));
 			} catch (Exception e) {
-				throw new IllegalArgumentException("Parsing failed");
+				throw new UpdateMessageException(UpdateMessageError.MALFORMED_AS_PATH);
 			}
 		}
 	}

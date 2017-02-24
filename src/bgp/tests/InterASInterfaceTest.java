@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
+import bgp.core.ASConnection;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
 import bgp.core.network.packet.PacketRouter;
@@ -19,8 +20,8 @@ public class InterASInterfaceTest {
 		Address a2 = Address.getAddress((long)(Math.random()*256*256*256*256));
 		TestPacketHandler h1 = new TestPacketHandler();
 		TestPacketHandler h2 = new TestPacketHandler();
-		InterASInterface if1 = new InterASInterface(a1, h1);
-		InterASInterface if2 = new InterASInterface(a2, h2);
+		InterASInterface if1 = new InterASInterface(a1, h1, null);
+		InterASInterface if2 = new InterASInterface(a2, h2, null);
 		AtomicInteger trueSum1 = new AtomicInteger();
 		AtomicInteger trueSum2 = new AtomicInteger();
 		AtomicInteger trueCount1 = new AtomicInteger();
@@ -87,7 +88,7 @@ public class InterASInterfaceTest {
 		}
 
 		@Override
-		public void routePacket(byte[] pkg, InterASInterface receivingInterface) {
+		public void routePacket(byte[] pkg, ASConnection receivingConnection) {
 			int value = pkg[0];
 			counter.incrementAndGet();
 			summer.addAndGet(value);

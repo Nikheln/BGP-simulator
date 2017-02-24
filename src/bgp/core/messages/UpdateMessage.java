@@ -6,6 +6,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import bgp.core.messages.NotificationMessage.UpdateMessageError;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.PathAttribute;
@@ -47,10 +49,18 @@ public class UpdateMessage extends BGPMessage {
 		this.NLRI.addAll(NLRI);
 	}
 	
-	protected UpdateMessage(byte[] messageContent) {
+	protected UpdateMessage(byte[] messageContent) throws UpdateMessageException {
 		int index = HEADER_LENGTH;
+		
 		this.withdrawnRoutes = new ArrayList<>();
 		int withdrawnRoutesOctets = (messageContent[index++] << 8) + messageContent[index++];
+		
+		this.pathAttributes = new ArrayList<>();
+		int pathAttributeOctets = (messageContent[index++] << 8) + messageContent[index++];
+		
+		if (withdrawnRoutesOctets + pathAttributeOctets + 23 > messageContent.length) {
+			throw new UpdateMessageException(UpdateMessageError.MALFORMED_ATTRIBUTE_LIST);
+		}
 		for (int i = 0; i < withdrawnRoutesOctets; i++) {
 			int bml = messageContent[index++];
 			int octetCount = (int)(Math.ceil(bml/8.0));
@@ -61,8 +71,6 @@ public class UpdateMessage extends BGPMessage {
 			i += octetCount;
 		}
 		
-		this.pathAttributes = new ArrayList<>();
-		int pathAttributeOctets = (messageContent[index++] << 8) + messageContent[index++];
 		for (int i = 0; i < pathAttributeOctets; i++) {
 			int startIndex = index;
 			int pal = 0;
@@ -104,7 +112,11 @@ public class UpdateMessage extends BGPMessage {
 	}
 	
 	public void changeNextHop(byte[] ownAddress) {
-		NextHop newNH = new NextHop(ownAddress);
+		NextHop newNH = null;
+		try {
+			newNH = new NextHop(ownAddress);
+		} catch (UpdateMessageException e) {
+		}
 		PathAttribute oldNH = null;
 		for (PathAttribute p : pathAttributes) {
 			if (p instanceof NextHop) {

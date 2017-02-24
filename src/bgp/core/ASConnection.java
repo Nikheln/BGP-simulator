@@ -27,7 +27,7 @@ public class ASConnection {
 	private Address neighbourAddress;
 	
 	public ASConnection(Address ownAddress, BGPRouter handler) {
-		this.adapter = new InterASInterface(ownAddress, handler);
+		this.adapter = new InterASInterface(ownAddress, handler, this);
 		this.handler = handler;
 		this.fsm = new StateMachine();
 		this.fsm.changeState(State.IDLE);
@@ -77,7 +77,7 @@ public class ASConnection {
 						}
 						hasReceivedKeepalive = false;
 					} else {
-						// No KEEPALIVE message received in allotted time
+						raiseNotification(NotificationMessage.getHoldTimeExpiredError());
 					}
 				}
 				

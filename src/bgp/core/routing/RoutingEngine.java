@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 
 import bgp.core.Consts;
+import bgp.core.messages.NotificationMessage.UpdateMessageError;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
@@ -137,7 +139,7 @@ public class RoutingEngine {
 	 * @param um
 	 * @throws IllegalArgumentException
 	 */
-	public void handleUpdateMessage(UpdateMessage um) throws IllegalArgumentException {
+	public void handleUpdateMessage(UpdateMessage um) throws UpdateMessageException {
 		// Try to extract the mandatory Path attributes
 		AsPath ap = null;
 		NextHop nh = null;
@@ -152,7 +154,9 @@ public class RoutingEngine {
 			}
 		}
 		if (ap == null || nh == null || o == null) {
-			throw new IllegalArgumentException("Missing mandatory Path attributes");
+			throw new UpdateMessageException(UpdateMessageError.MISSING_WELL_KNOWN_ATTRIBUTE);
+		} else if (o.getOriginValue() < 0 || o.getOriginValue() > 2) {
+			throw new UpdateMessageException(UpdateMessageError.INVALID_ORIGIN_ATTRIBUTE);
 		}
 		
 		LinkedList<Integer> hops = ap.getIdSequence();

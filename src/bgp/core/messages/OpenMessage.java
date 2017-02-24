@@ -1,5 +1,8 @@
 package bgp.core.messages;
 
+import bgp.core.messages.NotificationMessage.OpenMessageError;
+import bgp.core.messages.notificationexceptions.OpenMessageException;
+
 public class OpenMessage extends BGPMessage {
 	
 	private static final byte VERSION = 4;
@@ -29,12 +32,12 @@ public class OpenMessage extends BGPMessage {
 		this.bgpId = bgpId;
 	}
 	
-	protected OpenMessage(byte[] messageContent) throws IllegalArgumentException {
+	protected OpenMessage(byte[] messageContent) throws OpenMessageException {
 		if (messageContent[HEADER_LENGTH] != VERSION) {
-			throw new IllegalArgumentException("Version field must have value " + VERSION);
+			throw new OpenMessageException(OpenMessageError.UNSUPPORTED_VERSION_NUM);
 		}
 		if (messageContent[HEADER_LENGTH+9] != 0) {
-			throw new IllegalArgumentException("Current system does not support optional parameters");
+			throw new OpenMessageException(OpenMessageError.UNSUPPORTED_OPTIONAL_PARAM);
 		}
 		asId = (int)(((messageContent[HEADER_LENGTH+1]&0xFF) << 8) + (messageContent[HEADER_LENGTH+2]&0x00FF))&0xFFFF;
 		holdTime = (int)(((messageContent[HEADER_LENGTH+3]&0xFF) << 8) + (messageContent[HEADER_LENGTH+4]&0x00FF))&0xFFFF;

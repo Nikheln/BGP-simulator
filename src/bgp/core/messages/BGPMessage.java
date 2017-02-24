@@ -1,5 +1,9 @@
 package bgp.core.messages;
 
+import bgp.core.messages.NotificationMessage.MessageHeaderError;
+import bgp.core.messages.notificationexceptions.MessageHeaderException;
+import bgp.core.messages.notificationexceptions.NotificationException;
+
 public abstract class BGPMessage {
 	
 	protected abstract byte getType();
@@ -39,7 +43,7 @@ public abstract class BGPMessage {
 	 * @param message Body of a possible BGP message without IP header
 	 * @return A BGP message object
 	 */
-	public static BGPMessage deserialize(byte[] message) {
+	public static BGPMessage deserialize(byte[] message) throws NotificationException {
 		switch (message[18]) {
 		case 1:
 			// Open
@@ -54,7 +58,7 @@ public abstract class BGPMessage {
 			// Keepalive
 			return new KeepaliveMessage(message);
 		default:
-			throw new IllegalArgumentException("Message type was invalid");
+			throw new MessageHeaderException(MessageHeaderError.BAD_MESSAGE_TYPE);
 		}
 	}
 

@@ -16,6 +16,7 @@ import bgp.core.BGPRouter;
 import bgp.core.SimulatorState;
 import bgp.core.fsm.State;
 import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
@@ -160,10 +161,14 @@ public class BGPRouterTest {
 		
 		List<Subnet> withdrawnRoutes = new ArrayList<>();
 		List<PathAttribute> pathAttributes = new ArrayList<>();
-		pathAttributes.add(new Origin(2));
-		// Next hop can be 0.0.0.0 because it is changed in forwarding phase
-		pathAttributes.add(new NextHop(new byte[]{0,0,0,0}));
-		pathAttributes.add(new AsPath(new ArrayList<>()));
+		try {
+			pathAttributes.add(new Origin(2));
+			// Next hop can be 0.0.0.0 because it is changed in forwarding phase
+			pathAttributes.add(new NextHop(new byte[]{0,0,0,0}));
+			pathAttributes.add(new AsPath(new ArrayList<>()));
+		} catch (UpdateMessageException e1) {
+			fail("Malformed Path attributes");
+		}
 		List<Subnet> NLRI = new ArrayList<>();
 		NLRI.add(Subnet.getSubnet("11.0.0.0/8"));
 		
