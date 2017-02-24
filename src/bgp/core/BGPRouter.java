@@ -80,7 +80,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
 		this.routingEngine = new RoutingEngine(this.id);
 		// Register this router's subnet
-		this.routingEngine.addRoutingInfo(this.subnet, 1, 0, 200);
+		this.routingEngine.addRoutingInfo(this.subnet, this.id, 0, 200);
 	}
 
 	@Override
@@ -101,6 +101,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
 			int nextHop = routingEngine.decidePath(address, true);
+			
 			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
@@ -246,7 +247,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	public void removeConnection(ASConnection toRemove) {
 		int toRemoveId = getIdForConnection(toRemove);
 		
-		// Build an UPDATE message
+		// Build an UPDATE message to inform neighbours
 		UpdateMessageBuilder b = new UpdateMessageBuilder();
 		b.addPathAttribute(new AsPath(new ArrayList<>()))
 		 .addPathAttribute(new Origin(this.id))

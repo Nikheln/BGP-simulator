@@ -60,6 +60,7 @@ public class SubnetNode {
 		for (SubnetNode child : children) {
 			child.setParent(parent);
 		}
+		parent.children.remove(this);
 	}
 	
 	@Override

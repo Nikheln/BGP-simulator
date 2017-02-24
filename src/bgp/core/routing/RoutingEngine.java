@@ -7,12 +7,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
 import bgp.core.Consts;
 import bgp.core.messages.UpdateMessage;
-import bgp.core.messages.UpdateMessageBuilder;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
@@ -34,17 +32,14 @@ public class RoutingEngine {
 	public RoutingEngine(int asId) {
 		this.asId = asId;
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
+		// Packets with unknown subnet will go here (drop)
+		this.subnetRootNode.setPath(-1, 0, 999);
 		this.routingCache = new HashMap<>();
 		this.localPref = new HashMap<>();
 	}
 	
 	/**
-	 * This is where the magic happens.
-	 * 
-	 * 1) Find the AS with longest matching prefix
-	 * 2) Look for a local preference for paths to this AS
-	 * 3) Find the shortest path to this AS
-	 * 
+	 * Decide a path to given address, based on current routing information
 	 * @param address
 	 * @return Router ID of NEXT_HOP to be used
 	 */
@@ -55,6 +50,15 @@ public class RoutingEngine {
 		} else {
 			return subnetNode.getFirstHop();
 		}
+	}
+	
+	/**
+	 * Decide the path for address, use cache
+	 * @param address
+	 * @return
+	 */
+	public int decidePath(long address) {
+		return decidePath(address, true);
 	}
 	
 	public void addRoutingInfo(Subnet subnet, int firstHop, int length, int localPref) {
@@ -111,10 +115,6 @@ public class RoutingEngine {
 			}
 		} while (hasChanged);
 		return current;
-	}
-	
-	protected SubnetNode getRootSubnetNode() {
-		return subnetRootNode;
 	}
 	
 	public Set<Subnet> getSubnetsBehind(int asId) {
@@ -191,7 +191,7 @@ public class RoutingEngine {
 		
 		// Clear the NLRI and Withdrawn routes lists from the UPDATE message
 		um.getWithdrawnRoutes().clear();
-		um.getWithdrawnRoutes().addAll(utilizedPaths);
+		um.getWithdrawnRoutes().addAll(deletedPaths);
 		um.getNLRI().clear();
 		um.getNLRI().addAll(utilizedPaths);
 		
@@ -223,6 +223,7 @@ public class RoutingEngine {
 			.sorted((e1, e2) -> e2.getKey()-e1.getKey())
 			.forEach(entry -> {
 				// Padding to match real path length
+				// Necessary to avoid the other end thinking of this as an optimal route to everything
 				while (ap.getIdSequence().size() < entry.getKey()) {
 					ap.appendId(asId);
 				}

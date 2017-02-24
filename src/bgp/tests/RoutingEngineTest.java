@@ -76,12 +76,15 @@ public class RoutingEngineTest {
 		NLRI4.add(Subnet.getSubnet("30.128.0.0/20"));
 		UpdateMessage um4 = new UpdateMessage(withdrawnRoutes4, pathAttributes4, NLRI4);
 		e2.handleUpdateMessage(um4);
+		um4.appendOwnId(2);
+		e1.handleUpdateMessage(um4);
 		
 		assertEquals(2, e3.decidePath(Address.getAddress("10.0.10.5").getAddress()));
 		// No valid subnet, should be dropped
 		assertEquals(-1, e3.decidePath(Address.getAddress("20.4.150.7").getAddress()));
 		
 		assertEquals(3, e2.decidePath(Address.getAddress("30.0.10.1").getAddress()));
+		assertEquals(2, e1.decidePath(Address.getAddress("30.0.10.1").getAddress()));
 		assertEquals(1, e2.decidePath(Address.getAddress("10.0.1.5").getAddress()));
 		
 		// E3 withdraws subnets
@@ -95,15 +98,12 @@ public class RoutingEngineTest {
 		List<Subnet> NLRI5 = new ArrayList<>();
 		UpdateMessage um5 = new UpdateMessage(withdrawnRoutes5, pathAttributes5, NLRI5);
 		e2.handleUpdateMessage(um5);
+		um5.appendOwnId(2);
+		um5.changeNextHop(Address.getAddress("20.0.0.1").getBytes());
+		e1.handleUpdateMessage(um5);
 		
 		assertEquals(-1, e2.decidePath(Address.getAddress("30.128.15.5").getAddress()));
-		
-		// Test forwarding
-		um4.appendOwnId(2);
-		um4.changeNextHop(Address.getAddress("20.0.0.1").getBytes());
-		e1.handleUpdateMessage(um4);
-		
-		assertEquals(2, e1.decidePath(Address.getAddress("30.1.0.15").getAddress()));
+		assertEquals(-1, e1.decidePath(Address.getAddress("30.128.15.5").getAddress()));
 		
 	}
 

@@ -1,11 +1,9 @@
 package bgp.tests;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
@@ -117,6 +115,7 @@ public class BGPRouterTest {
 		}
 	}
 	
+	@SuppressWarnings("unused")
 	@Test
 	public void testUpdateMessageForwarding() {
 		SimulatorState.resetState();
@@ -184,14 +183,15 @@ public class BGPRouterTest {
 			assertNotEquals(-1, SimulatorState.getRouter(i).getRoutingEngine().decidePath(c1.getAddress().getAddress()));
 		}
 		
-		NetworkViewer.showNetwork();
-		try {
-			Thread.sleep(60000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if (false) {
+			NetworkViewer.showNetwork();
+			try {
+				Thread.sleep(60000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		
 	}
 
 }
