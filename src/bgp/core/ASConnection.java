@@ -34,7 +34,8 @@ public class ASConnection {
 	}
 	
 	/**
-	 * Start connecting. Initialize the state machine, initialize KEEPALIVE tasks
+	 * Start connecting. Initialize the state machine and call {@link #sendOpenMessage(Address)}
+	 * @param neighbourAddress
 	 */
 	public void start(Address neighbourAddress) {
 		this.fsm.changeState(State.CONNECT);
@@ -42,6 +43,11 @@ public class ASConnection {
 		sendOpenMessage(neighbourAddress);
 	}
 	
+	/**
+	 * Send an OPEN message to recipient, retry for 10 times,
+	 * change state to OPEN_SENT after success
+	 * @param recipient
+	 */
 	public void sendOpenMessage(Address recipient) {
 		this.retryCounter++;
 		OpenMessage m = new OpenMessage(handler.id,
@@ -58,11 +64,18 @@ public class ASConnection {
 				}
 				sendOpenMessage(recipient);
 				return;
+			} else {
+				raiseNotification(NotificationMessage.getCeaseError());
 			}
 		}
 		fsm.changeState(State.OPEN_SENT);
 	}
 	
+	/**
+	 * Handle a received OPEN message: start sending and checking
+	 * for KEEPALIVE messages and change state to OPEN_CONFIRM
+	 * @param m
+	 */
 	public void handleOpenMessage(OpenMessage m) {
 		if (fsm.getCurrentState().equals(State.OPEN_SENT)
 				|| fsm.getCurrentState().equals(State.CONNECT)) {
@@ -92,8 +105,8 @@ public class ASConnection {
 					try {
 						adapter.sendData(packet);
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
 						// Error sending KEEPALIVE
+						raiseNotification(NotificationMessage.getCeaseError());
 					}
 				}
 				
@@ -137,23 +150,31 @@ public class ASConnection {
 		}
 	}
 	
+	/**
+	 * Send a NOTIFICATION message to other end and close the connection
+	 * @param m
+	 */
 	public void raiseNotification(NotificationMessage m) {
 		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
 		sendPacket(message);
 		closeConnection();
 	}
 	
+	/**
+	 * Close the connection: shut down the adapter,
+	 * stop sending and checking for KEEPALIVEs and change state to IDLE,
+	 * tell the router to stop using this adapter
+	 */
 	public void closeConnection() {
+		handler.removeConnection(this);
 		try {
 			adapter.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// Failed closing the adapter
 		}
 		this.keepaliveSending.cancel();
 		this.keepaliveChecking.cancel();
 		this.fsm.changeState(State.IDLE);
-		handler.removeConnection(this);
 	}
 
 }

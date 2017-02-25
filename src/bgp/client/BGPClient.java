@@ -20,10 +20,6 @@ public class BGPClient implements PacketReceiver {
 		this.ap = router;
 	}
 	
-	public void shutdown() {
-		ap.freeAddress(address);
-	}
-
 	/**
 	 * Only increments the packet counter at the moment.
 	 */
@@ -40,6 +36,11 @@ public class BGPClient implements PacketReceiver {
 	@Override
 	public Address getAddress() {
 		return address;
+	}
+	
+	@Override
+	public void shutdown() {
+		ap.freeAddress(address);
 	}
 
 }

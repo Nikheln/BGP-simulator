@@ -134,10 +134,10 @@ public class RoutingEngine {
 
 	/**
 	 * Process an UPDATE message and update the routing information accordingly.
-	 * Modify the UPDATE message ready for forwarding by filtering unnecessary routes.
+	 * Modify the UPDATE message ready for forwarding by filtering out unnecessary routes.
 	 * 
 	 * @param um
-	 * @throws IllegalArgumentException
+	 * @throws UpdateMessageException
 	 */
 	public void handleUpdateMessage(UpdateMessage um) throws UpdateMessageException {
 		// Try to extract the mandatory Path attributes

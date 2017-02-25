@@ -135,6 +135,7 @@ public class UpdateMessage extends BGPMessage {
 		for (PathAttribute p : pathAttributes) {
 			if (p instanceof AsPath) {
 				((AsPath)p).appendId(ownAsId);
+				return;
 			}
 		}
 	}

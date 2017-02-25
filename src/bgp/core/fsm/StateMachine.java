@@ -12,9 +12,7 @@ package bgp.core.fsm;public class StateMachine {
 	
 	/**
 	 * Change the machine's state from oldState to newState
-	 * @param oldState
 	 * @param newState
-	 * @throws InvalidParameterException
 	 */
 	public void changeState(State newState) {
 		this.currentState = newState;

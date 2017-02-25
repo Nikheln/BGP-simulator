@@ -51,12 +51,8 @@ public class AsPath extends PathAttribute {
 	 * Prepend the given AS ID to the beginning of the list (usually own ID)
 	 * 
 	 * @param idToAppend
-	 * @throws IllegalStateException If the value given is already in the list
 	 */
-	public void appendId(int idToAppend) throws IllegalStateException {
-		if (idSequence.contains(idToAppend)) {
-			throw new IllegalStateException("AS_PATH contains a loop");
-		}
+	public void appendId(int idToAppend) {
 		this.idSequence.addFirst(idToAppend);
 	}
 	

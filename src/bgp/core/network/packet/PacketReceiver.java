@@ -7,5 +7,6 @@ public interface PacketReceiver {
 	public Address getAddress();
 	public void receivePacket(byte[] pkg);
 	public long getReceivedPacketCount();
+	public void shutdown();
 
 }

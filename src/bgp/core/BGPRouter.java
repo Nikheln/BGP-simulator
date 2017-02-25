@@ -77,8 +77,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		this.addressingPointer = this.subnet.getAddress() + 1;
 		
 		this.packetProcessingThread = Executors.newSingleThreadExecutor();
-		
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
+		
 		this.routingEngine = new RoutingEngine(this.id);
 		// Register this router's subnet
 		this.routingEngine.addRoutingInfo(this.subnet, this.id, 0, 200);
@@ -133,10 +133,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	private void sendViaInterface(byte[] packet, int nextHop) {
 		packetProcessingThread.execute(() -> {
 			if (connections.containsKey(nextHop)) {
-				try {
-					connections.get(nextHop).sendPacket(packet);
-				} catch (Exception e) {
-				}
+				connections.get(nextHop).sendPacket(packet);
 			}
 		});
 	}
@@ -174,7 +171,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				if (m instanceof KeepaliveMessage && senderId != -1) {
 					connections.get(senderId).raiseKeepaliveFlag();
 				} else if (m instanceof NotificationMessage) {
-					
+					removeConnection(connections.get(senderId));
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
 					addressToASId.put(senderAddress, om.getASId());
@@ -254,7 +251,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	public void removeConnection(ASConnection toRemove) {
 		int toRemoveId = getIdForConnection(toRemove);
-		
+
+		connections.remove(toRemoveId);	
 		try {
 			// Build an UPDATE message to inform neighbours
 			UpdateMessageBuilder b = new UpdateMessageBuilder();
@@ -274,10 +272,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			// Send an UPDATE message to peers
 			forwardUpdateMessage(um);
 		} catch (UpdateMessageException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			connections.remove(toRemoveId);	
+			// UPDATE message processing failed
 		}
 	}
 	
@@ -327,15 +322,23 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		connectionKeepaliveTimer.scheduleAtFixedRate(task, delay, period);
 	}
 	
+	@Override
 	public void shutdown() {
 		// Shut down all threads and timers
 		packetProcessingThread.shutdownNow();
 		maintenanceThread.shutdownNow();
 		connectionKeepaliveTimer.cancel();
+		
 		// Inform clients
+		packetReceivers.values()
+			.stream()
+			.filter(pr -> pr != this)
+			.forEach(pr -> pr.shutdown());
 		
 		// Inform peers
-		
+		connections.values()
+			.stream()
+			.forEach(conn -> conn.raiseNotification(NotificationMessage.getCeaseError()));
 	}
 	
 	
