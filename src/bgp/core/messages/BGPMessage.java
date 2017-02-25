@@ -57,6 +57,9 @@ public abstract class BGPMessage {
 		case 4:
 			// Keepalive
 			return new KeepaliveMessage(message);
+		case 5:
+			// Trust
+			return new TrustMessage(message);
 		default:
 			throw new MessageHeaderException(MessageHeaderError.BAD_MESSAGE_TYPE);
 		}

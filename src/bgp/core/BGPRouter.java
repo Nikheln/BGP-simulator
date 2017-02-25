@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +18,7 @@ import bgp.core.messages.BGPMessage;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.messages.OpenMessage;
+import bgp.core.messages.TrustMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.UpdateMessageBuilder;
 import bgp.core.messages.notificationexceptions.NotificationException;
@@ -33,6 +35,8 @@ import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
 import bgp.core.routing.RoutingEngine;
+import bgp.core.trust.TrustEngine;
+import bgp.utils.Pair;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
 	
@@ -56,6 +60,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	private final RoutingEngine routingEngine;
 	
+	private final TrustEngine trustEngine;
+	
 	/**
 	 * Map that pairs Addresses to their corresponding IPv4 packet receivers.
 	 */
@@ -78,10 +84,12 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		
 		this.packetProcessingThread = Executors.newSingleThreadExecutor();
 		this.maintenanceThread = Executors.newSingleThreadExecutor();
-		
-		this.routingEngine = new RoutingEngine(this.id);
+
+		this.trustEngine = new TrustEngine();
+		this.routingEngine = new RoutingEngine(this.id, this.trustEngine);
 		// Register this router's subnet
 		this.routingEngine.addRoutingInfo(this.subnet, this.id, 0, 200);
+		
 	}
 
 	@Override
@@ -183,7 +191,31 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					UpdateMessage um = (UpdateMessage)m;
 					routingEngine.handleUpdateMessage(um);
 					
+					// If UPDATE message AS_PATH has more than one peer, ask for trust vote
+					um.getPathAttributes()
+						.stream()
+						.filter(pa -> pa instanceof AsPath)
+						.findAny()
+						.map(ap -> ((AsPath)ap).getIdSequence())
+						.ifPresent(seq -> {
+							int firstNeighbour = seq.get(0);
+							int secondNeighbour = firstNeighbour;
+							
+							for (Iterator<Integer> iter = seq.iterator();
+									iter.hasNext() && firstNeighbour == secondNeighbour;
+									secondNeighbour = iter.next()) {}
+							
+							if (firstNeighbour != secondNeighbour) {
+								// A second-order peer was found, request trust
+								requestTrustMessage(firstNeighbour, secondNeighbour);
+							}
+						});
 					forwardUpdateMessage(um);
+				} else if (m instanceof TrustMessage) {
+					long recipientAddress = PacketEngine.extractRecipient(pkg);
+					TrustMessage tm = (TrustMessage) m;
+					
+					handleTrustMessage(tm, senderAddress, recipientAddress);
 				}
 				
 			} catch (NotificationException e) {
@@ -249,6 +281,56 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		});
 	}
 	
+	// An Address-ID list of requested trust values to avoid peers sending multiple values for one query
+	private final List<Pair<Long, Integer>> trustRequests = new ArrayList<>();
+	
+	private void requestTrustMessage(int targetId, int questionedId) {
+		// With no DNS system present, query target address straight from other router
+		Address reviewerAddress = SimulatorState
+				.getRouter(questionedId)
+				.getConnectionFor(targetId)
+				.getAdapter()
+				.getOwnAddress();
+		Address ownAddress = connections.get(targetId).getAdapter().getOwnAddress();
+		
+		// Build a TRUST message and send over the reviewed peer
+		TrustMessage tm = new TrustMessage(targetId);
+		byte[] packet = PacketEngine.buildPacket(ownAddress, reviewerAddress, tm.serialize());
+		routePacket(packet, null);
+		
+		// Add a token for the request
+		trustRequests.add(new Pair<>(reviewerAddress.getAddress(), targetId));
+		
+	}
+	
+	/**
+	 * Process a given TRUST message, either responding to a query or
+	 * modifying trust based on a received response to a query
+	 * 
+	 * @param tm
+	 * @param senderAddress
+	 * @param recipientAddress
+	 */
+	private void handleTrustMessage(TrustMessage tm, long senderAddress, long recipientAddress) {
+		if (tm.isRequest()) {
+			// Respond to trust query
+			int id = tm.getTargetId();
+			
+			TrustMessage response = new TrustMessage(id, trustEngine.getTrustFor(id));
+			byte[] packet = PacketEngine.buildPacket(recipientAddress, senderAddress, response.serialize());
+			
+			routePacket(packet, null);
+		} else {
+			// Check that trust was asked for and modify it accordingly
+			boolean wasAsked = trustRequests.remove(new Pair<Long, Integer>(senderAddress, tm.getTargetId()));
+			if (wasAsked) {
+				// Modify trust
+				trustEngine.handleTrustVote(tm.getTargetId(), tm.getTrust());
+			}
+		}
+	}
+	
+	
 	public void removeConnection(ASConnection toRemove) {
 		int toRemoveId = getIdForConnection(toRemove);
 
@@ -312,6 +394,10 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	@Override
 	public Address getAddress() {
 		return null;
+	}
+	
+	public TrustEngine getTrustEngine() {
+		return trustEngine;
 	}
 	
 	public RoutingEngine getRoutingEngine() {

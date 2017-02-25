@@ -5,9 +5,10 @@ import java.util.Arrays;
 public class NotificationMessage extends BGPMessage {
 	
 	protected NotificationMessage(byte[] messageContent) {
-		code = messageContent[0]&0xFF;
-		subcode = messageContent[1]&0xFF;
-		data = Arrays.copyOfRange(messageContent, 2, messageContent.length);
+		int index = HEADER_LENGTH;
+		code = messageContent[index++]&0xFF;
+		subcode = messageContent[index++]&0xFF;
+		data = Arrays.copyOfRange(messageContent, index+2, messageContent.length);
 	}
 	
 	private final int code;
@@ -38,6 +39,10 @@ public class NotificationMessage extends BGPMessage {
 		return body;
 	}
 	
+	public ErrorCode getErrorType() {
+		return ErrorCode.solveType(code);
+	}
+	
 	public enum ErrorCode {
 		MESSAGE_HEADER_ERROR(1),
 		OPEN_MESSAGE_ERROR(2),
@@ -50,6 +55,15 @@ public class NotificationMessage extends BGPMessage {
 		
 		private ErrorCode(int code) {
 			this.code = (byte) code;
+		}
+		
+		private static ErrorCode solveType(int code) {
+			for (ErrorCode c : ErrorCode.values()) {
+				if (c.code == code) {
+					return c;
+				}
+			}
+			return CEASE;
 		}
 	}
 	

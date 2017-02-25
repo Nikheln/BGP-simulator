@@ -7,10 +7,13 @@ import bgp.core.fsm.State;
 import bgp.core.fsm.StateMachine;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
+import bgp.core.messages.NotificationMessage.ErrorCode;
 import bgp.core.messages.OpenMessage;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
 import bgp.core.network.PacketEngine;
+import bgp.core.trust.TrustEngine;
+import bgp.utils.Consts;
 
 public class ASConnection {
 	
@@ -24,6 +27,7 @@ public class ASConnection {
 	
 	private TimerTask keepaliveChecking, keepaliveSending;
 	
+	private int neighbourId;
 	private Address neighbourAddress;
 	
 	public ASConnection(Address ownAddress, BGPRouter handler) {
@@ -79,6 +83,7 @@ public class ASConnection {
 	public void handleOpenMessage(OpenMessage m) {
 		if (fsm.getCurrentState().equals(State.OPEN_SENT)
 				|| fsm.getCurrentState().equals(State.CONNECT)) {
+			neighbourId = m.getASId();
 			neighbourAddress = Address.getAddress(m.getBgpId());
 			this.keepaliveChecking = new TimerTask() {
 
@@ -151,10 +156,28 @@ public class ASConnection {
 	}
 	
 	/**
-	 * Send a NOTIFICATION message to other end and close the connection
+	 * Send a NOTIFICATION message to other end,
+	 * possibly change its direct trust, and close the connection
+	 * 
 	 * @param m
 	 */
 	public void raiseNotification(NotificationMessage m) {
+		// Penalize neighbour in some error cases
+		TrustEngine t = handler.getTrustEngine();
+		switch (m.getErrorType()) {
+		case HOLD_TIMER_EXPIRED:
+			t.changeDirectTrust(neighbourId, -10);
+			break;
+		case MESSAGE_HEADER_ERROR:
+			t.changeDirectTrust(neighbourId, -15);
+			break;
+		case UPDATE_MESSAGE_ERROR:
+			t.changeDirectTrust(neighbourId, -20);
+			break;
+		default:
+			break;
+		}
+		
 		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
 		sendPacket(message);
 		closeConnection();

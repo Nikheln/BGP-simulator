@@ -9,15 +9,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import bgp.core.Consts;
 import bgp.core.messages.NotificationMessage.UpdateMessageError;
-import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Subnet;
+import bgp.core.trust.TrustProvider;
+import bgp.utils.Consts;
 
 public class RoutingEngine {
 	
@@ -31,13 +32,17 @@ public class RoutingEngine {
 	private final Map<Subnet, Integer> routingCache;
 	private final Map<Integer, Integer> localPref;
 	
-	public RoutingEngine(int asId) {
+	private final TrustProvider trustProvider;
+	
+	public RoutingEngine(int asId, TrustProvider trustProvider) {
 		this.asId = asId;
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		// Packets with unknown subnet will go here (drop)
 		this.subnetRootNode.setPath(-1, 0, 999);
 		this.routingCache = new HashMap<>();
 		this.localPref = new HashMap<>();
+		
+		this.trustProvider = trustProvider;
 	}
 	
 	/**
@@ -179,15 +184,31 @@ public class RoutingEngine {
 		Set<Subnet> utilizedPaths = new HashSet<>();
 		for (Subnet s : um.getNLRI()) {
 			SubnetNode n = getBestMatchingSubnetNode(s);
-			boolean newNode = !n.subnet.equals(s);
+			boolean pathChanged = false;
+			
 			// With a partial match, add a new node as a child
+			boolean newNode = !n.subnet.equals(s);
 			if (newNode) {
+				// New path
 				n = new SubnetNode(n, s);
+				pathChanged = true;
+				
+			} else if (localPref > n.getLocalPref()) {
+				// Higher preference than current path
+				pathChanged = true;
+				
+			} else if (localPref == n.getLocalPref()) {
+				// Same preference, compare lengths modified with trust
+				int oldTrust = 128 - trustProvider.getTrustFor(n.getFirstHop());
+				double oldLength = n.getLength()*oldTrust/255.0;
+				
+				int newTrust = 128 - trustProvider.getTrustFor(firstHop);
+				double newLength = length*newTrust/255.0;
+				
+				pathChanged = newLength < oldLength;
 			}
 			
-			if (newNode
-					|| (localPref > n.getLocalPref())
-					|| (localPref == n.getLocalPref() && length < n.getLength())) {
+			if (pathChanged) {
 				n.setPath(firstHop, localPref, length);
 				utilizedPaths.add(n.subnet);
 			}

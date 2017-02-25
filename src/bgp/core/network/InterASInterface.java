@@ -6,9 +6,9 @@ import java.io.PipedOutputStream;
 import java.util.Arrays;
 
 import bgp.core.ASConnection;
-import bgp.core.Consts;
 import bgp.core.SimulatorState;
 import bgp.core.network.packet.PacketRouter;
+import bgp.utils.Consts;
 
 public class InterASInterface implements AutoCloseable, Runnable {
 	

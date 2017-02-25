@@ -34,6 +34,10 @@ public class PacketEngine {
 	private static final byte DEFAULT_PROTOCOL = (byte) 17;
 	
 	public static byte[] buildPacket(Address from, Address to, byte[] payload) {
+		return buildPacket(from.address, to.address, payload);
+	}
+	
+	public static byte[] buildPacket(long from, long to, byte[] payload) {
 		int totalLen = HEADER_LENGTH + payload.length;
 		
 		byte[] result = new byte[totalLen];
@@ -54,17 +58,15 @@ public class PacketEngine {
 		result[9] = DEFAULT_PROTOCOL;
 		// Checksum is calculated after all values are in place
 		
-		long fromLong = from.getAddress();
-		result[12] = (byte) (fromLong >> 24);
-		result[13] = (byte) (fromLong >> 16);
-		result[14] = (byte) (fromLong >> 8);
-		result[15] = (byte) (fromLong);
+		result[12] = (byte) (from >> 24);
+		result[13] = (byte) (from >> 16);
+		result[14] = (byte) (from >> 8);
+		result[15] = (byte) (from);
 		
-		long toLong = to.getAddress();
-		result[16] = (byte) (toLong >> 24);
-		result[17] = (byte) (toLong >> 16);
-		result[18] = (byte) (toLong >> 8);
-		result[19] = (byte) (toLong);
+		result[16] = (byte) (to >> 24);
+		result[17] = (byte) (to >> 16);
+		result[18] = (byte) (to >> 8);
+		result[19] = (byte) (to);
 		
 		long checksum = calculateChecksum(result);
 		result[10] = (byte) (checksum >> 8);

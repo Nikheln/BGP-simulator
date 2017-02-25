@@ -1,6 +1,7 @@
 package bgp.tests;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,15 +18,16 @@ import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Address;
 import bgp.core.network.Subnet;
 import bgp.core.routing.RoutingEngine;
+import bgp.core.trust.TrustEngine;
 
 public class RoutingEngineTest {
 
 	@Test
 	public void testHandleUpdateMessage() {
 		try {
-			RoutingEngine e1 = new RoutingEngine(1);
-			RoutingEngine e2 = new RoutingEngine(2);
-			RoutingEngine e3 = new RoutingEngine(3);
+			RoutingEngine e1 = new RoutingEngine(1, new TrustEngine());
+			RoutingEngine e2 = new RoutingEngine(2, new TrustEngine());
+			RoutingEngine e3 = new RoutingEngine(3, new TrustEngine());
 			
 			// Initial message from E1 to E2
 			List<Subnet> withdrawnRoutes1 = new ArrayList<>();
