@@ -2,9 +2,9 @@ package bgp.utils;
 
 public class Consts {
 	/**
-	 * MTU is set at 1111 1111 = 255 to make sure the length fits in one byte.
+	 * MTU is set at 1111 1111 1111 1111 = 65535 to make sure the length fits in one byte.
 	 */
-	public static final int MTU = 1 << 8 - 1;
+	public static final int MTU = Short.MAX_VALUE;
 	
 	public static final int DEFAULT_PREF = 100;
 	

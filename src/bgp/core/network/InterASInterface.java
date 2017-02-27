@@ -50,7 +50,9 @@ public class InterASInterface implements AutoCloseable, Runnable {
 
 	public void sendData(byte[] content) throws IOException {
 		if (content != null && content.length > 0) {
-			this.out.write(content.length);
+			// Send the amount of upcoming octets in two bytes
+			this.out.write((content.length >>> 8)&0xFF);
+			this.out.write(content.length&0xFF);
 			this.out.write(content, 0, content.length);
 			this.out.flush();
 		}
@@ -72,7 +74,8 @@ public class InterASInterface implements AutoCloseable, Runnable {
 		byte[] readBuffer = new byte[Consts.MTU];
 		while (!shutdown) {
 			try {
-				octetCount = in.read();
+				// Read two bytes to get the octet count of the packet
+				octetCount = ((in.read()&0xFF) << 8) + (in.read()&0xFF);
 				in.read(readBuffer, 0, octetCount);
 				handler.routePacket(Arrays.copyOf(readBuffer, octetCount), conn);
 			} catch (IOException e) {

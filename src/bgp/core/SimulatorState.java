@@ -1,5 +1,6 @@
 package bgp.core;
 
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +73,15 @@ public class SimulatorState {
 	
 	public static BGPRouter getRouter(int bgpId) {
 		return routers.get(bgpId);
+	}
+	
+	/**
+	 * Serve public keys similarly to a PKI would
+	 * @param bgpId
+	 * @return
+	 */
+	public static PublicKey getPublicKey(int bgpId) {
+		return getRouter(bgpId).getPublicKey();
 	}
 	
 	public static Set<Integer> getReservedIds() {

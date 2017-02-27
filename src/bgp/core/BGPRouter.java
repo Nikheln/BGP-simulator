@@ -1,6 +1,7 @@
 package bgp.core;
 
 import java.io.IOException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -207,7 +208,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 							
 							if (firstNeighbour != secondNeighbour) {
 								// A second-order peer was found, request trust
-								requestTrustMessage(firstNeighbour, secondNeighbour);
+								requestTrustMessage(secondNeighbour, firstNeighbour);
 							}
 						});
 					forwardUpdateMessage(um);
@@ -284,17 +285,17 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	// An Address-ID list of requested trust values to avoid peers sending multiple values for one query
 	private final List<Pair<Long, Integer>> trustRequests = new ArrayList<>();
 	
-	private void requestTrustMessage(int targetId, int questionedId) {
+	private void requestTrustMessage(int reviewedId, int targetId) {
 		// With no DNS system present, query target address straight from other router
 		Address reviewerAddress = SimulatorState
-				.getRouter(questionedId)
+				.getRouter(reviewedId)
 				.getConnectionFor(targetId)
 				.getAdapter()
 				.getOwnAddress();
 		Address ownAddress = connections.get(targetId).getAdapter().getOwnAddress();
 		
 		// Build a TRUST message and send over the reviewed peer
-		TrustMessage tm = new TrustMessage(targetId);
+		TrustMessage tm = new TrustMessage(reviewedId, targetId);
 		byte[] packet = PacketEngine.buildPacket(ownAddress, reviewerAddress, tm.serialize());
 		routePacket(packet, null);
 		
@@ -312,22 +313,37 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 * @param recipientAddress
 	 */
 	private void handleTrustMessage(TrustMessage tm, long senderAddress, long recipientAddress) {
+		int reviewerId = tm.getReviewerId();
+		byte[] reviewerKey = SimulatorState.getPublicKey(reviewerId).getEncoded();
+		int targetId = tm.getTargetId();
 		if (tm.isRequest()) {
 			// Respond to trust query
-			int id = tm.getTargetId();
-			
-			TrustMessage response = new TrustMessage(id, trustEngine.getTrustFor(id));
-			byte[] packet = PacketEngine.buildPacket(recipientAddress, senderAddress, response.serialize());
-			
-			routePacket(packet, null);
+			try {
+				byte[] encryptedVote = trustEngine.getEncryptedTrust(targetId, reviewerKey);
+				byte[] signature = trustEngine.getSignature(encryptedVote);
+				TrustMessage response = new TrustMessage(id, targetId, encryptedVote, signature);
+				byte[] packet = PacketEngine.buildPacket(recipientAddress, senderAddress, response.serialize());
+				
+				routePacket(packet, null);
+			} catch (Exception e) {
+			}
 		} else {
 			// Check that trust was asked for and modify it accordingly
 			boolean wasAsked = trustRequests.remove(new Pair<Long, Integer>(senderAddress, tm.getTargetId()));
 			if (wasAsked) {
 				// Modify trust
-				trustEngine.handleTrustVote(tm.getTargetId(), tm.getTrust());
+				byte[] encryptedVote = tm.getPayload();
+				byte[] signature = tm.getSignature();
+				try {
+					trustEngine.handleTrustVote(targetId, reviewerKey, encryptedVote, signature);
+				} catch (Exception e) {
+				}
 			}
 		}
+	}
+	
+	public PublicKey getPublicKey() {
+		return trustEngine.getPublicKey();
 	}
 	
 	
