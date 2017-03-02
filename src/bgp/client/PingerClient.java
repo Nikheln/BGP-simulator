@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import bgp.client.messages.ClientMessage;
 import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
@@ -17,6 +18,7 @@ import bgp.core.network.PacketEngine;
 public class PingerClient extends BGPClient implements Pinger {
 	
 	private final Set<Token> tokens;
+	private int pingLimit;
 	private int pingsSent;
 	private int responsesReceived;
 
@@ -27,18 +29,21 @@ public class PingerClient extends BGPClient implements Pinger {
 		responsesReceived = 0;
 	}
 	
-	public void startPinging(List<Long> recipientAddresses, int pingCount, int interval) {
-		AtomicInteger counter = new AtomicInteger();
+	public void startPinging(List<Long> recipientAddresses, int pingLimit, int interval) {
+		this.pingLimit = pingLimit*recipientAddresses.size();
 		TimerTask task = new TimerTask() {
 				
 			@Override
 			public void run() {
 				for (long recipient : recipientAddresses) {
-					sendPing(recipient);
+					boolean limitReached = sendPing(recipient);
+					
+					if (limitReached) {
+						this.cancel();
+						return;
+					}
 				}
-				if (counter.incrementAndGet() == pingCount) {
-					this.cancel();
-				}
+				
 			}
 		};
 		
@@ -46,11 +51,17 @@ public class PingerClient extends BGPClient implements Pinger {
 	}
 	
 	@Override
-	public void sendPing(long recipient) {
+	public boolean sendPing(long recipient) {
+		if (pingsSent >= pingLimit) {
+			return false;
+		}
+		
 		PingRequest pr = new PingRequest();
 		tokens.add(new Token(pr.getTokenBytes()));
 		ph.routePacket(PacketEngine.buildPacket(address.getAddress(), recipient, pr.serialize()));
 		pingsSent++;
+		
+		return true;
 	}
 
 	@Override
@@ -68,6 +79,11 @@ public class PingerClient extends BGPClient implements Pinger {
 		} else {
 			return 1.0;
 		}
+	}
+	
+	@Override
+	public void receivePacket(byte[] pkg) {
+		super.receivePacket(pkg);
 	}
 	
 	private class Token {

@@ -2,10 +2,10 @@ package bgp.client;
 
 import bgp.client.messages.ClientMessage;
 import bgp.client.messages.MessageHandlers.Pingable;
+import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
-import bgp.core.SimulatorState;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
 import bgp.core.network.PacketEngine;
@@ -37,6 +37,8 @@ public class BGPClient implements PacketReceiver, Pingable {
 		
 		if (cm instanceof PingRequest) {
 			handlePing(sender, (PingRequest)cm);
+		} else if (cm instanceof PingResponse && this instanceof Pinger) {
+			((Pinger)this).receivePing((PingResponse)cm);
 		}
 	}
 
@@ -58,9 +60,8 @@ public class BGPClient implements PacketReceiver, Pingable {
 	@Override
 	public void handlePing(long sender, PingRequest p) {
 		byte[] token = p.getTokenBytes();
-		byte[] packet = PacketEngine.buildPacket(address.getAddress(), sender, new PingResponse(token).serialize());
-		
-		ph.routePacket(packet);
+
+		ph.routePacket(PacketEngine.buildPacket(address.getAddress(), sender, new PingResponse(token).serialize()));
 	}
 
 }

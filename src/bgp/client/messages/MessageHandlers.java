@@ -7,7 +7,12 @@ public class MessageHandlers {
 	}
 	
 	public interface Pinger {
-		public void sendPing(long recipient);
+		/**
+		 * Send a PING message to specified recipient
+		 * @param recipient
+		 * @return True if PING was sent, false otherwise
+		 */
+		public boolean sendPing(long recipient);
 		public void receivePing(PingResponse p);
 		public double getSuccessRate();
 	}

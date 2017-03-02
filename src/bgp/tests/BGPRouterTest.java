@@ -128,12 +128,13 @@ public class BGPRouterTest {
 	
 	@Test
 	public void testPinging() {
-		int networkRouterCount = 40;
-		int clientsPerRouter = 4;
-		int pingCount = 5;
+		LinkingOrder networkType = LinkingOrder.CLUSTERED;
+		int networkRouterCount = 30;
+		int clientsPerRouter = 10;
+		int pingCount = 3;
 		int pingInterval = 200;
 		
-		buildNetwork(LinkingOrder.CLUSTERED, networkRouterCount);
+		buildNetwork(networkType, networkRouterCount);
 
 		List<Integer> routerIds = SimulatorState.getReservedIds();
 		Collections.shuffle(routerIds);
@@ -159,7 +160,7 @@ public class BGPRouterTest {
 		}
 		
 		try {
-			Thread.sleep(1500);
+			Thread.sleep((pingCount+1)*pingInterval);
 		} catch (InterruptedException e) {
 		}
 		

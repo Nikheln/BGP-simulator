@@ -101,13 +101,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				return;
 			}
 			
-			try {
-				PacketEngine.decrementTTL(packet);
-			} catch (IllegalArgumentException e) {
-				// Drop packet if TTL == 0, otherwise decrement
-				return;
-			}
-			
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
 			int nextHop = routingEngine.decidePath(address, true);
@@ -127,6 +120,14 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				// Packet should be forwarded elsewhere
 				// If preferred route is the router that sent the package,
 				// drop it to avoid bouncing back and forth
+				
+				try {
+					PacketEngine.decrementTTL(packet);
+				} catch (IllegalArgumentException e) {
+					// Drop packet if TTL == 0, otherwise decrement
+					return;
+				}
+				
 				connections.get(nextHop).sendPacket(packet);
 			} else {
 				// No suitable next hop is found, drop packet

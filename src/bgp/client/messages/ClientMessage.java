@@ -25,11 +25,12 @@ public abstract class ClientMessage {
 	public abstract byte[] getBody();
 	
 	public static ClientMessage deserialize(byte[] msg) {
+		
 		switch (msg[2]) {
 		case 1:
 			return new PingRequest(msg);
 		case 2:
-			return new PingResponse(msg);
+			return new PingResponse(msg, true);
 		default:
 			return null;
 		}
