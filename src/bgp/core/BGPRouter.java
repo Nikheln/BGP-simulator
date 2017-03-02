@@ -119,7 +119,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					if (rec == this) {
 						receivingConnection.raiseKeepaliveFlag();
 					}
-					rec.receivePacket(packet);
+					// Run in separate simulator threads
+					SimulatorState.getClientExecutor().execute(() -> rec.receivePacket(packet));
 				}
 			} else if (connections.containsKey(nextHop)
 					&& !connections.get(nextHop).equals(receivingConnection)) {
@@ -132,6 +133,11 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				return;
 			}
 		});
+	}
+
+	@Override
+	public void routePacket(byte[] pkg) {
+		routePacket(pkg, null);
 	}
 	
 	/**

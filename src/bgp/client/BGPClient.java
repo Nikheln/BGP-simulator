@@ -1,15 +1,20 @@
 package bgp.client;
 
+import bgp.client.messages.ClientMessage;
+import bgp.client.messages.MessageHandlers.Pingable;
+import bgp.client.messages.PingRequest;
+import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
+import bgp.core.network.PacketEngine;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
 
-public class BGPClient implements PacketReceiver {
+public class BGPClient implements PacketReceiver, Pingable {
 	
-	private final Address address;
-	private final PacketRouter ph;
+	protected final Address address;
+	protected final PacketRouter ph;
 	private final AddressProvider ap;
 	
 	private long receivedPacketCount;
@@ -25,7 +30,13 @@ public class BGPClient implements PacketReceiver {
 	 */
 	@Override
 	public void receivePacket(byte[] pkg) {
-		receivedPacketCount++;
+		long sender = PacketEngine.extractSender(pkg);
+		byte[] body = PacketEngine.extractBody(pkg);
+		ClientMessage cm = ClientMessage.deserialize(body);
+		
+		if (cm instanceof PingRequest) {
+			handlePing(sender, (PingRequest)cm);
+		}
 	}
 
 	@Override
@@ -41,6 +52,14 @@ public class BGPClient implements PacketReceiver {
 	@Override
 	public void shutdown() {
 		ap.freeAddress(address);
+	}
+
+	@Override
+	public void handlePing(long sender, PingRequest p) {
+		byte[] token = p.getTokenBytes();
+		byte[] packet = PacketEngine.buildPacket(address.getAddress(), sender, new PingResponse(token).serialize());
+		
+		ph.routePacket(packet);
 	}
 
 }

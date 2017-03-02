@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import bgp.core.network.Address;
 
@@ -15,6 +17,8 @@ public class SimulatorState {
 	
 	private static final List<Address> usedAddresses = new ArrayList<>();
 	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
+	
+	private static final Executor clientExecutor = Executors.newFixedThreadPool(8);
 	
 	public static void resetState() {
 		usedAddresses.clear();
@@ -100,6 +104,10 @@ public class SimulatorState {
 			throw new IllegalStateException("Router specified is not registered");
 		}
 		routers.remove(id);
+	}
+	
+	public static Executor getClientExecutor() {
+		return clientExecutor;
 	}
 	
 }

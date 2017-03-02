@@ -14,4 +14,6 @@ public interface PacketRouter {
 	 * @param pkg
 	 */
 	public void routePacket(byte[] pkg, ASConnection receivingConnection);
+	
+	public void routePacket(byte[] pkg);
 }
