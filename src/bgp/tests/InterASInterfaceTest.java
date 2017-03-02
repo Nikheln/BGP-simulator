@@ -93,6 +93,11 @@ public class InterASInterfaceTest {
 			counter.incrementAndGet();
 			summer.addAndGet(value);
 		}
+
+		@Override
+		public void routePacket(byte[] pkg) {
+			routePacket(pkg, null);
+		}
 		
 	}
 

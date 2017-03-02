@@ -2,12 +2,16 @@ package bgp.client;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
+import bgp.core.SimulatorState;
 import bgp.core.network.PacketEngine;
 
 public class PingerClient extends BGPClient implements Pinger {
@@ -22,7 +26,25 @@ public class PingerClient extends BGPClient implements Pinger {
 		pingsSent = 0;
 		responsesReceived = 0;
 	}
-
+	
+	public void startPinging(List<Long> recipientAddresses, int pingCount, int interval) {
+		AtomicInteger counter = new AtomicInteger();
+		TimerTask task = new TimerTask() {
+				
+			@Override
+			public void run() {
+				for (long recipient : recipientAddresses) {
+					sendPing(recipient);
+				}
+				if (counter.incrementAndGet() == pingCount) {
+					this.cancel();
+				}
+			}
+		};
+		
+		SimulatorState.addClientTask(task, interval);
+	}
+	
 	@Override
 	public void sendPing(long recipient) {
 		PingRequest pr = new PingRequest();

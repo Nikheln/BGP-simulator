@@ -5,6 +5,7 @@ import bgp.client.messages.MessageHandlers.Pingable;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
+import bgp.core.SimulatorState;
 import bgp.core.network.Address;
 import bgp.core.network.AddressProvider;
 import bgp.core.network.PacketEngine;

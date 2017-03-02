@@ -1,16 +1,20 @@
 package bgp.tests;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 
 import org.junit.Test;
 
 import bgp.client.BGPClient;
+import bgp.client.PingerClient;
+import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.core.ASConnection;
 import bgp.core.BGPRouter;
 import bgp.core.SimulatorState;
@@ -65,48 +69,8 @@ public class BGPRouterTest {
 	 * check that all connections are in state ESTABLISHED afterwards
 	 */
 	public void testConnectMultipleRouters() {
-		SimulatorState.resetState();
-		SimulatorState.setTestingMode(true);
 		int amountOfRouters = 20;
-		
-		for (int i = 1; i <= amountOfRouters; i++) {
-			 try {
-				 SimulatorState.registerRouter(new BGPRouter(i, Subnet.getSubnet((10+i)*256*256*256, Subnet.getSubnetMask(16))));
-			} catch (Exception e) {
-				fail(e.getMessage());
-			}
-		}
-
-		Queue<Integer> ids = new LinkedList<>();
-		for (int i = 0; i < amountOfRouters*8; i++) {
-			ids.add(1+(int)(Math.random()*(amountOfRouters-1)));
-		}
-		
-		
-		while (!ids.isEmpty()) {
-			int id1 = ids.poll();
-			int id2 = ids.poll();
-			if (id1 == id2) {
-				continue;
-			}
-			BGPRouter r1 = SimulatorState.getRouter(id1);
-			BGPRouter r2 = SimulatorState.getRouter(id2);
-			
-			if (r1.hasConnectionTo(id2)) {
-				continue;
-			}
-			try {
-				BGPRouter.connectRouters(r1, r2);
-			} catch (IllegalArgumentException | IOException e) {
-				fail(e.getMessage());
-			}
-		}
-		
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			fail(e.getMessage());
-		}
+		buildNetwork(LinkingOrder.RANDOM, amountOfRouters);
 		
 		for (int i = 1; i <= 20; i++) {
 			BGPRouter r = SimulatorState.getRouter(i);
@@ -119,45 +83,8 @@ public class BGPRouterTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void testUpdateMessageForwarding() {
-		SimulatorState.resetState();
-		SimulatorState.setTestingMode(true);
-		int amountOfRouters = 15;
-		LinkingOrder o = LinkingOrder.RANDOM;
-		
-		for (int i = 1; i <= amountOfRouters; i++) {
-			 try {
-				 SimulatorState.registerRouter(new BGPRouter(i, Subnet.getSubnet((10+i)*256*256*256, Subnet.getSubnetMask(16))));
-			} catch (Exception e) {
-				fail(e.getMessage());
-			}
-		}
-
-		Queue<Integer> ids = o.getLinkingOrder(amountOfRouters);		
-		
-		while (!ids.isEmpty()) {
-			int id1 = ids.poll();
-			int id2 = ids.poll();
-			if (id1 == id2) {
-				continue;
-			}
-			BGPRouter r1 = SimulatorState.getRouter(id1);
-			BGPRouter r2 = SimulatorState.getRouter(id2);
-			
-			if (r1.hasConnectionTo(id2)) {
-				continue;
-			}
-			try {
-				BGPRouter.connectRouters(r1, r2);
-			} catch (IllegalArgumentException | IOException e) {
-				fail(e.getMessage());
-			}
-		}
-		
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			fail(e.getMessage());
-		}
+		int amountOfRouters = 40;
+		buildNetwork(LinkingOrder.CLUSTERED, amountOfRouters);
 		
 		List<Subnet> withdrawnRoutes = new ArrayList<>();
 		List<PathAttribute> pathAttributes = new ArrayList<>();
@@ -196,6 +123,88 @@ public class BGPRouterTest {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		}
+	}
+	
+	@Test
+	public void testPinging() {
+		int networkRouterCount = 40;
+		int clientsPerRouter = 4;
+		int pingCount = 5;
+		int pingInterval = 200;
+		
+		buildNetwork(LinkingOrder.CLUSTERED, networkRouterCount);
+
+		List<Integer> routerIds = SimulatorState.getReservedIds();
+		Collections.shuffle(routerIds);
+		
+		List<Pinger> pingers = new ArrayList<>();
+		
+		// Add 4 clients to each router
+		for (int i = 0; i < clientsPerRouter; i++) {
+			PingerClient p = new PingerClient(SimulatorState.getRouter(routerIds.get(0)));
+			SimulatorState.registerClient(p);
+			pingers.add(p);
+			
+			List<Long> newClientAddresses = new ArrayList<>();
+			
+			for (int id : routerIds) {
+				BGPClient c = new BGPClient(SimulatorState.getRouter(id));
+				newClientAddresses.add(c.getAddress().getAddress());
+				SimulatorState.registerClient(c);
+			}
+			
+			p.startPinging(newClientAddresses, pingCount, pingInterval);
+			Collections.shuffle(routerIds);
+		}
+		
+		try {
+			Thread.sleep(1500);
+		} catch (InterruptedException e) {
+		}
+		
+		for (Pinger p : pingers) {
+			assertEquals(1.0, p.getSuccessRate(), 0.01);
+		}
+	}
+	
+	private void buildNetwork(LinkingOrder topology, int amountOfRouters) {
+		SimulatorState.resetState();
+		SimulatorState.setTestingMode(true);
+		
+		for (int i = 1; i <= amountOfRouters; i++) {
+			 try {
+				 SimulatorState.registerRouter(new BGPRouter(i, Subnet.getSubnet((10+i)*256*256*256, Subnet.getSubnetMask(16))));
+			} catch (Exception e) {
+				fail(e.getMessage());
+			}
+		}
+
+		Queue<Integer> ids = topology.getLinkingOrder(amountOfRouters);		
+		
+		while (!ids.isEmpty()) {
+			int id1 = ids.poll();
+			int id2 = ids.poll();
+			if (id1 == id2) {
+				continue;
+			}
+			BGPRouter r1 = SimulatorState.getRouter(id1);
+			BGPRouter r2 = SimulatorState.getRouter(id2);
+			
+			if (r1.hasConnectionTo(id2)) {
+				continue;
+			}
+			try {
+				BGPRouter.connectRouters(r1, r2);
+			} catch (IllegalArgumentException | IOException e) {
+				fail(e.getMessage());
+			}
+		}
+		
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			fail(e.getMessage());
 		}
 	}
 

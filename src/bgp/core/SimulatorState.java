@@ -6,9 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
+import bgp.client.BGPClient;
+import bgp.client.messages.MessageHandlers.Pingable;
 import bgp.core.network.Address;
 
 public class SimulatorState {
@@ -17,8 +22,10 @@ public class SimulatorState {
 	
 	private static final List<Address> usedAddresses = new ArrayList<>();
 	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
+	private static final Map<Long, BGPClient> clients = new HashMap<>();
 	
 	private static final Executor clientExecutor = Executors.newFixedThreadPool(8);
+	private static final Timer clientTaskTimer = new Timer();
 	
 	public static void resetState() {
 		usedAddresses.clear();
@@ -75,23 +82,6 @@ public class SimulatorState {
 		routers.put(router.id, router);
 	}
 	
-	public static BGPRouter getRouter(int bgpId) {
-		return routers.get(bgpId);
-	}
-	
-	/**
-	 * Serve public keys similarly to a PKI would
-	 * @param bgpId
-	 * @return
-	 */
-	public static PublicKey getPublicKey(int bgpId) {
-		return getRouter(bgpId).getPublicKey();
-	}
-	
-	public static Set<Integer> getReservedIds() {
-		return routers.keySet();
-	}
-	
 	public static void unregisterRouter(BGPRouter router) throws Exception {
 		if (router == null) {
 			throw new IllegalArgumentException("Router removed can not be null");
@@ -106,8 +96,44 @@ public class SimulatorState {
 		routers.remove(id);
 	}
 	
+	
+	public static List<Integer> getReservedIds() {
+		return new ArrayList<>(routers.keySet());
+	}
+	
+	public static BGPRouter getRouter(int bgpId) {
+		return routers.get(bgpId);
+	}
+	
+	
+	public static void registerClient(BGPClient client) {
+		clients.put(client.getAddress().getAddress(), client);
+	}
+	
+	public static Set<Pingable> getPingableClients() {
+		return clients.values()
+				.stream()
+				.filter(c -> c instanceof Pingable)
+				.collect(Collectors.toSet());
+	}
+	
+	
+	/**
+	 * Serve public keys similarly to a PKI would
+	 * @param bgpId
+	 * @return
+	 */
+	public static PublicKey getPublicKey(int bgpId) {
+		return getRouter(bgpId).getPublicKey();
+	}
+	
+	
 	public static Executor getClientExecutor() {
 		return clientExecutor;
+	}
+	
+	public static void addClientTask(TimerTask t, int interval) {
+		clientTaskTimer.scheduleAtFixedRate(t, interval, interval);
 	}
 	
 }
