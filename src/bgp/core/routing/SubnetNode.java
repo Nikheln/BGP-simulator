@@ -1,11 +1,12 @@
 package bgp.core.routing;
 
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bgp.core.network.Subnet;
 
@@ -23,7 +24,7 @@ public class SubnetNode {
 	public SubnetNode(SubnetNode parent, Subnet subnet) {
 		this.parent = parent;
 		this.subnet = subnet;
-		this.children = new HashSet<>();
+		this.children = Collections.newSetFromMap(new ConcurrentHashMap<SubnetNode, Boolean>());
 		
 		if (parent != null) {
 			parent.addChild(this);
@@ -68,9 +69,24 @@ public class SubnetNode {
 		return subnet.hashCode();
 	}
 	
+	public Iterator<SubnetNode> getChildIterator() {
+		return new Iterator<SubnetNode>() {
+			private final Queue<SubnetNode> nodes = new ConcurrentLinkedQueue<SubnetNode>(SubnetNode.this.children);
+			@Override
+			public boolean hasNext() {
+				return !nodes.isEmpty();
+			}
+
+			@Override
+			public SubnetNode next() {
+				return nodes.poll();
+			}
+		};
+	}
+	
 	public Iterator<SubnetNode> getSubnetNodeIterator() {
 		return new Iterator<SubnetNode>() {
-			private final Queue<SubnetNode> nodes = new LinkedList<>(Arrays.asList(SubnetNode.this));
+			private final Queue<SubnetNode> nodes = new ConcurrentLinkedQueue<SubnetNode>(Arrays.asList(SubnetNode.this));
 			@Override
 			public boolean hasNext() {
 				return !nodes.isEmpty();

@@ -88,11 +88,14 @@ public class PacketEngine {
 		if (packet[8] == 0) {
 			throw new IllegalArgumentException("TTL is already zero");
 		}
-		packet[8] = (byte) ((packet[8] - 1)&0xFFFF);
-
+		packet[8] = (byte) ((packet[8] - 1)&0xFF);
+		
+		// Reset the values to avoid affecting the checcksum
+		packet[10] = 0;
+		packet[11] = 0;
 		long checksum = calculateChecksum(packet);
-		packet[10] = (byte) (checksum >> 8);
-		packet[11] = (byte) (checksum);
+		packet[10] = (byte) ((checksum >>> 8)&0xFF);
+		packet[11] = (byte) (checksum&0xFF);
 	}
 	
 	public static long calculateChecksum(byte[] packet) {
@@ -117,6 +120,7 @@ public class PacketEngine {
 	public static boolean validatePacketHeader(byte[] packet) {
 		if (packet.length < 20) {
 			// Received packet is not long enough to hold header
+			System.out.println("LENGTH");
 			return false;
 		}
 		if (!verifyChecksum(packet)) {
@@ -126,16 +130,19 @@ public class PacketEngine {
 		
 		if (((packet[0]&0xF0)>>>4) != VERSION) {
 			// Invalid IP version
+			System.out.println("VERSION");
 			return false;
 		}
 		
 		if ((packet[0]&0x0F) < 5) {
 			// IHL is less than 5
+			System.out.println("IHL");
 			return false;
 		}
 		
-		if ((packet[0]&0x0F) * 4 < packet[2] << 8 + packet[3]) {
+		if (((packet[0]&0x0F) << 2) > (((packet[2]&0xFF) << 8)&0xFF00) + (packet[3]&0xFF)) {
 			// Datagram is too short to contain header
+			System.out.println("PACKET LENGTH");
 			return false;
 		}
 		
@@ -148,8 +155,8 @@ public class PacketEngine {
 	}
 	
 	public static byte[] extractBody(byte[] packet) {
-		int headerOctets = (packet[0] & 0x0F) << 2;
-		int totalOctets = (packet[2] << 8) + (packet[3]);
+		int headerOctets = (packet[0]&0x0F) << 2;
+		int totalOctets = (((packet[2]&0xFF) << 8)&0xFF00) + (packet[3]&0xFF);
 		int bodyOctets = totalOctets - headerOctets;
 		
 		byte[] result = new byte[bodyOctets];
@@ -170,6 +177,10 @@ public class PacketEngine {
 				+ ((packet[17] << 16)&0x00FF0000)
 				+ ((packet[18] << 8)&0x0000FF00)
 				+ ((packet[19])&0x000000FF));
+	}
+	
+	public static int extractTTL(byte[] packet) {
+		return packet[8]&0xFF;
 	}
 	
 	public static void printPacket(byte[] packet) {

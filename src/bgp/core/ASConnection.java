@@ -7,7 +7,6 @@ import bgp.core.fsm.State;
 import bgp.core.fsm.StateMachine;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
-import bgp.core.messages.NotificationMessage.ErrorCode;
 import bgp.core.messages.OpenMessage;
 import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
@@ -55,7 +54,7 @@ public class ASConnection {
 	public void sendOpenMessage(Address recipient) {
 		this.retryCounter++;
 		OpenMessage m = new OpenMessage(handler.id,
-				SimulatorState.testingMode ? 300 : Consts.DEFAULT_HOLD_DOWN_TIME,
+				Consts.DEFAULT_HOLD_DOWN_TIME,
 				adapter.getOwnAddress().getAddress());
 		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), recipient, m.serialize());
 		try {
@@ -92,6 +91,7 @@ public class ASConnection {
 					if (hasReceivedKeepalive) {
 						if (fsm.getCurrentState().equals(State.OPEN_CONFIRM)) {
 							fsm.changeState(State.ESTABLISHED);
+							handler.sendRoutingInformation(neighbourId);
 						}
 						hasReceivedKeepalive = false;
 					} else {
@@ -118,9 +118,9 @@ public class ASConnection {
 			};
 
 			// Start checking that KEEPALIVE messages have come
-			handler.registerKeepaliveTask(keepaliveChecking, m.getHoldTime(), m.getHoldTime());
+			handler.registerKeepaliveTask(keepaliveChecking, 200, m.getHoldTime());
 			// Start sending KEEPALIVE messages
-			handler.registerKeepaliveTask(keepaliveSending, 20, SimulatorState.testingMode ? 100 : Consts.DEFAULT_KEEPALIVE_INTERVAL);
+			handler.registerKeepaliveTask(keepaliveSending, 20, Consts.DEFAULT_KEEPALIVE_INTERVAL);
 			
 			fsm.changeState(State.OPEN_CONFIRM);
 		}
@@ -150,8 +150,6 @@ public class ASConnection {
 		try {
 			adapter.sendData(packet);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 	

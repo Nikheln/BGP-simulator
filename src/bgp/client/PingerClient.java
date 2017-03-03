@@ -5,9 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import bgp.client.messages.ClientMessage;
 import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
@@ -53,7 +51,7 @@ public class PingerClient extends BGPClient implements Pinger {
 	@Override
 	public boolean sendPing(long recipient) {
 		if (pingsSent >= pingLimit) {
-			return false;
+			return true;
 		}
 		
 		PingRequest pr = new PingRequest();
@@ -61,7 +59,7 @@ public class PingerClient extends BGPClient implements Pinger {
 		ph.routePacket(PacketEngine.buildPacket(address.getAddress(), recipient, pr.serialize()));
 		pingsSent++;
 		
-		return true;
+		return false;
 	}
 
 	@Override

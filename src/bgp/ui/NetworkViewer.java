@@ -1,6 +1,5 @@
 package bgp.ui;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -19,12 +18,12 @@ import org.graphstream.graph.implementations.SingleGraph;
 import bgp.core.ASConnection;
 import bgp.core.BGPRouter;
 import bgp.core.SimulatorState;
-import bgp.core.fsm.State;
 import bgp.core.network.Subnet;
 
 public class NetworkViewer {
 	
 	public enum LinkingOrder {
+		LINE,
 		RING,
 		STAR,
 		RING_STAR,
@@ -35,6 +34,15 @@ public class NetworkViewer {
 			Queue<Integer> list = new LinkedList<>();
 			
 			switch (this) {
+			case LINE:
+				list.add(1);
+				for (int i = 1; i <=n; i++) {
+					list.add(i);
+					if (i != n) {
+						list.add(i);
+					}
+				}
+				break;
 			case RING:
 				list.add(1);
 				for (int i = 2; i <= n; i++) {
@@ -88,7 +96,7 @@ public class NetworkViewer {
 				
 				// Link clusters randomly
 				for (int i = 0; i < c*1.5; i++) {
-					List<Integer> group1 = new ArrayList<>(clusters.get((int)(Math.random()*c)));
+					List<Integer> group1 = new ArrayList<>(clusters.get(i%clusters.size()));
 					List<Integer> group2 = group1;
 					while (group1 == group2) {
 						group2 = new ArrayList<>(clusters.get((int)(Math.random()*c)));
@@ -202,6 +210,7 @@ public class NetworkViewer {
 		}
 		
 		g.display();
+		
 	}
 	
 }

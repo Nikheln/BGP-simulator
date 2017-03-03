@@ -8,7 +8,7 @@ public class NotificationMessage extends BGPMessage {
 		int index = HEADER_LENGTH;
 		code = messageContent[index++]&0xFF;
 		subcode = messageContent[index++]&0xFF;
-		data = Arrays.copyOfRange(messageContent, index+2, messageContent.length);
+		data = Arrays.copyOfRange(messageContent, index, messageContent.length);
 	}
 	
 	private final int code;

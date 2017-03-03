@@ -78,13 +78,13 @@ public class AsPath extends PathAttribute {
 	@Override
 	public byte[] getTypeBody() {
 		byte pathSegmentType = (byte) segmentType;
-		byte sequenceLength = (byte) idSequence.size();
+		int sequenceLength = idSequence.size();
 		
 		byte[] body = new byte[2 + 2*sequenceLength];
 		int index = 0;
 		
 		body[index++] = pathSegmentType;
-		body[index++] = sequenceLength;
+		body[index++] = (byte) (sequenceLength&0xFF);
 		for (Integer id : idSequence) {
 			body[index++] = (byte) (id >> 8);
 			body[index++] = (byte) (id >> 0);

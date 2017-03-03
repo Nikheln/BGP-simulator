@@ -44,6 +44,9 @@ public abstract class BGPMessage {
 	 * @return A BGP message object
 	 */
 	public static BGPMessage deserialize(byte[] message) throws NotificationException {
+		if (message.length < 18) {
+			throw new MessageHeaderException(MessageHeaderError.BAD_MESSAGE_LENGTH);
+		}
 		switch (message[18]) {
 		case 1:
 			// Open

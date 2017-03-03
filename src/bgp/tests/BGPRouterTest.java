@@ -1,8 +1,6 @@
 package bgp.tests;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,6 +9,8 @@ import java.util.List;
 import java.util.Queue;
 
 import org.junit.Test;
+
+import com.sun.xml.internal.ws.policy.spi.AssertionCreationException;
 
 import bgp.client.BGPClient;
 import bgp.client.PingerClient;
@@ -25,6 +25,7 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
+import bgp.core.network.PacketEngine;
 import bgp.core.network.Subnet;
 import bgp.ui.NetworkViewer;
 import bgp.ui.NetworkViewer.LinkingOrder;
@@ -129,9 +130,9 @@ public class BGPRouterTest {
 	@Test
 	public void testPinging() {
 		LinkingOrder networkType = LinkingOrder.CLUSTERED;
-		int networkRouterCount = 30;
+		int networkRouterCount = 100;
 		int clientsPerRouter = 10;
-		int pingCount = 3;
+		int pingCount = 10;
 		int pingInterval = 200;
 		
 		buildNetwork(networkType, networkRouterCount);
@@ -141,12 +142,11 @@ public class BGPRouterTest {
 		
 		List<Pinger> pingers = new ArrayList<>();
 		
-		// Add 4 clients to each router
+		// Add clients to each router
 		for (int i = 0; i < clientsPerRouter; i++) {
 			PingerClient p = new PingerClient(SimulatorState.getRouter(routerIds.get(0)));
 			SimulatorState.registerClient(p);
 			pingers.add(p);
-			
 			List<Long> newClientAddresses = new ArrayList<>();
 			
 			for (int id : routerIds) {
@@ -163,10 +163,48 @@ public class BGPRouterTest {
 			Thread.sleep((pingCount+1)*pingInterval);
 		} catch (InterruptedException e) {
 		}
-		
+
+		NetworkViewer.showNetwork();
+		try {
+			Thread.sleep(10000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		};
 		for (Pinger p : pingers) {
-			assertEquals(1.0, p.getSuccessRate(), 0.01);
+			assertEquals(1.0, p.getSuccessRate(), 0.05);
 		}
+		
+	}
+	
+	@Test
+	public void testLinkBreaking() {
+		buildNetwork(LinkingOrder.LINE, 5);
+		
+		BGPRouter r3 = SimulatorState.getRouter(3);
+		BGPRouter r4 = SimulatorState.getRouter(4);
+		BGPRouter r5 = SimulatorState.getRouter(5);
+		
+		// Make sure the connection works initially
+		assertEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
+		
+		// Break the connection R3-R4
+		r3.receivePacket(PacketEngine.buildPacket(
+				r3.getConnectionFor(4).getNeighbourAddress(),
+				r4.getConnectionFor(3).getNeighbourAddress(),
+				new byte[0]));
+		
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		assertFalse(r3.getConnectedRouterIds().contains(4));
+		
+		assertNotEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
+		
 	}
 	
 	private void buildNetwork(LinkingOrder topology, int amountOfRouters) {
@@ -203,7 +241,7 @@ public class BGPRouterTest {
 		}
 		
 		try {
-			Thread.sleep(2000);
+			Thread.sleep(amountOfRouters*100);
 		} catch (InterruptedException e) {
 			fail(e.getMessage());
 		}

@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import bgp.core.ASConnection;
 import bgp.core.SimulatorState;
+import bgp.core.messages.NotificationMessage;
 import bgp.core.network.packet.PacketRouter;
 import bgp.utils.Consts;
 
@@ -75,13 +76,14 @@ public class InterASInterface implements AutoCloseable, Runnable {
 		while (!shutdown) {
 			try {
 				// Read two bytes to get the octet count of the packet
-				octetCount = ((in.read()&0xFF) << 8) + (in.read()&0xFF);
+				octetCount = (((in.read()&0xFF) << 8)&0xFF00) + (in.read()&0xFF);
 				in.read(readBuffer, 0, octetCount);
+				
 				handler.routePacket(Arrays.copyOf(readBuffer, octetCount), conn);
-			} catch (IOException e) {
+			} catch (IOException|IndexOutOfBoundsException e) {
 				if (!shutdown) {
 					// Actual error
-					e.printStackTrace();
+					conn.raiseNotification(NotificationMessage.getCeaseError());
 				} else {
 					// Caused by shutdown
 				}

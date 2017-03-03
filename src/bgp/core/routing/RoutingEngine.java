@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import bgp.core.messages.NotificationMessage.UpdateMessageError;
 import bgp.core.messages.UpdateMessage;
@@ -39,8 +40,8 @@ public class RoutingEngine {
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		// Packets with unknown subnet will go here (drop)
 		this.subnetRootNode.setPath(-1, 0, 999);
-		this.routingCache = new HashMap<>();
-		this.localPref = new HashMap<>();
+		this.routingCache = new ConcurrentHashMap<>();
+		this.localPref = new ConcurrentHashMap<>();
 		
 		this.trustProvider = trustProvider;
 	}
@@ -113,7 +114,8 @@ public class RoutingEngine {
 		
 		do {
 			hasChanged = false;
-			for (SubnetNode n : current.children) {
+			for (Iterator<SubnetNode> iter = current.getChildIterator(); iter.hasNext();) {
+				SubnetNode n = iter.next();
 				if (n.subnet.containsAddress(address)) {
 					current = n;
 					hasChanged = true;
@@ -166,14 +168,14 @@ public class RoutingEngine {
 		
 		LinkedList<Integer> hops = ap.getIdSequence();
 		int length = hops.size();
-		int firstHop = hops.get(0);
+		int firstHop = hops.size() > 0 ? hops.get(0) : -1;
 		int localPref = getLocalPref(firstHop);
-
+		
 		// Remove the revoked subnets if their preferred path is the revoking one
 		Set<Subnet> deletedPaths = new HashSet<>();
 		for (Subnet s : um.getWithdrawnRoutes()) {
 			SubnetNode n = getBestMatchingSubnetNode(s);
-			if (n.subnet.equals(s) && firstHop == n.getFirstHop()) {
+			if (n.subnet.equals(s) && (firstHop == n.getFirstHop() || firstHop == -1)) {
 				n.delete();
 				deletedPaths.add(n.subnet);
 			}
@@ -238,7 +240,10 @@ public class RoutingEngine {
 		Map<Integer, Set<SubnetNode>> nodes = new HashMap<>();
 		for (Iterator<SubnetNode> iter = subnetRootNode.getSubnetNodeIterator(); iter.hasNext(); ) {
 			SubnetNode n = iter.next();
-			nodes.computeIfAbsent(n.getLength(), len -> new HashSet<>()).add(n);
+			// Do not send own default route
+			if (n.getFirstHop() > 0 && n.getLength() < 100) {
+				nodes.computeIfAbsent(n.getLength(), len -> new HashSet<>()).add(n);
+			}
 		}
 		
 		List<byte[]> messages = new ArrayList<>();

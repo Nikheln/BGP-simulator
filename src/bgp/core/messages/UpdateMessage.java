@@ -77,12 +77,13 @@ public class UpdateMessage extends BGPMessage {
 			if ((messageContent[index++] & 0b00010000) == 0) {
 				// Not extended
 				index++; // Skip type code
-				pal += (messageContent[index++]);
+				pal += (messageContent[index++])&0xFF;
 			} else {
 				// Extended
 				index++; // Skip type code
-				pal += (messageContent[index++] << 8) + (messageContent[index++]);
+				pal += ((messageContent[index++] << 8)&0xFF00) + ((messageContent[index++])&0x00FF);
 			}
+			
 			this.pathAttributes.add(PathAttribute.deserialize(Arrays.copyOfRange(messageContent, startIndex, startIndex + pal)));
 			index = startIndex + pal;
 			i += pal;
