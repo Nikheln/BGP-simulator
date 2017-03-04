@@ -1,0 +1,13 @@
+\begin{thebibliography}{1}
+
+\bibitem{graphstreamteam2017}
+{GraphStream Team}, ``Graphstream - a dynamic graph library,'' Mar. 2017.
+
+\bibitem{rfc791}
+{Information Sciences Institute}, ``{Internet Protocol}.'' RFC 791, Sept. 1981.
+
+\bibitem{rfc793}
+{Information Sciences Institute}, ``{Transmission Control Protocol}.'' RFC 793,
+  Sept. 1981.
+
+\end{thebibliography}

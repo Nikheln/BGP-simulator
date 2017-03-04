@@ -1,0 +1,69 @@
+\documentclass[10pt,a4paper,titlepage]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage{dirtree}
+
+\author{Group 8\\Niko Hellgren, 505174}
+\title{BGP Simulator Documentation}
+\date{Protocol Processing, Spring 2017}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was utilized. A high-level overview of the program structure is presented in \ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
+
+The simulation has the following basic technical features and limitations:
+\begin{itemize}
+\item The simulation is strongly threaded, with each router and client working as its own thread and \texttt{Timer} threads utilized in testing and \texttt{KEEPALIVE} messages.
+\item Layer 1 and Layer 2 functionalities are simulated by Java's \texttt{PipedInputStream} and \texttt{PipedOutputStream} that are made to transit \texttt{byte[]} arrays between threads. The output streams are \texttt{synchronized} to make sure the sent packets do not mix up.
+\item Layer 3 functionality is implemented according to the IPv4 protocol. Although the constructed packets contain and transmit all the fields defined in \cite{rfc791}, fields \emph{Type of Service}, \emph{Identification}, \emph{Flags}, \emph{Fragment Offset}, and \emph{Protocol} are filled with default values in all cases, and they are not used for anything. This is partly enabled by the simulation not supporting packet fragmentation.
+\item A globally available static class provides the simulated routers and clients with DNS-like functionality, since implementing an actual DNS functionality is not essential in this simulation.
+\item The simulated network uses BGP-4 messages to transmit information between routers.
+\item TCP functionality is not implemented, and BGP packets are transmitted as ordinary IP packet payloads. This removes the possibility to test or simulate security and stability issues caused by TCP, but simplifies the implementation due to the complicated functionality of TCP \cite{rfc793}.
+\item Routing information is transmitted using \texttt{UPDATE} messages after connection initialization and all routing table changes.
+\item Additional BGP message type, \texttt{TRUST} has been added for trust voting between routers. To avoid Man-in-the-Middle attacks (usually the router being voted on is on the transmission path of the vote), the trust votes are encrypted using 1024-bit RSA and signed using RSA with SHA-1. To avoid making key transmission overly complicated, a PKI-like functionality was made available as a globally available class, providing routers with other routers public keys. The trust implementation is discussed in more detail in Section \ref{sec:trust}.
+\item Behaviour in error situations has been implemented comprehensively, and both L1/L2 breakage, missing \texttt{KEEPALIVE} messages, and erroneous BGP messages cause the routers to drop the link and inform their neighbourhood of this. Possible issues effect the trust rate of the misbehaving router.
+\end{itemize}
+
+\section{Code overview}\label{sec:hlo}
+\begin{figure}
+\dirtree{%
+.1 bgp.
+.2 client\DTcomment{Clients of simulator's routers}.
+.3 messages\DTcomment{Messages transmitted between clients}.
+.2 core\DTcomment{Router implementation}.
+.3 messages\DTcomment{BGP message implementations}.
+.4 notificationexceptions\DTcomment{Exception classes used to throw information that should raise a \texttt{NOTIFICATION}}.
+.4 pathattributes\DTcomment{Path attributes used in \texttt{UPDATE} messages}.
+.3 network\DTcomment{Network adapter simulation, L1/L2 functionality}.
+.4 fsm\DTcomment{Finite state machine used by the inter-router connections}.
+.4 packet\DTcomment{Interfaces defining behaviour for different actors concerning IP packets}.
+.3 routing\DTcomment{Routing table engine}.
+.3 trust\DTcomment{Inter-router trust table}.
+.2 tests\DTcomment{JUnit tests to ensure correct working of the program}.
+.2 ui\DTcomment{User interface components}.
+.2 utils\DTcomment{Functionalities needed by various classes (e.g. IP addresses)}.
+}
+\caption{Package structure of the code}
+\label{fig:packagestructure}
+\end{figure}
+
+\section{Trust implementation}\label{sec:trust}
+
+\section{General notes from the project}\label{sec:notes}
+\begin{itemize}
+\item When Java interprets bytes as integers, they are shifted to range -128..127. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
+\item Great built-in support for threads, timers and task executors in Java 8 made some otherwise difficult tasks (e.g. \texttt{KEEPALIVE} message sending and checking) really easy.
+\item Following object-oriented paradigm in development was both intuitive and helpful, due to the software being a simulator.
+\end{itemize}
+
+\bibliography{documentation}
+\bibliographystyle{ieeetr}
+
+\end{document}
