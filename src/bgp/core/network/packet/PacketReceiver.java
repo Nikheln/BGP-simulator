@@ -1,6 +1,6 @@
 package bgp.core.network.packet;
 
-import bgp.core.network.Address;
+import bgp.utils.Address;
 
 public interface PacketReceiver {
 	

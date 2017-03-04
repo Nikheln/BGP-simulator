@@ -9,6 +9,7 @@ import bgp.core.ASConnection;
 import bgp.core.SimulatorState;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.network.packet.PacketRouter;
+import bgp.utils.Address;
 import bgp.utils.Consts;
 
 public class InterASInterface implements AutoCloseable, Runnable {
@@ -49,7 +50,7 @@ public class InterASInterface implements AutoCloseable, Runnable {
 		this.conn = conn;
 	}
 
-	public void sendData(byte[] content) throws IOException {
+	public synchronized void sendData(byte[] content) throws IOException {
 		if (content != null && content.length > 0) {
 			// Send the amount of upcoming octets in two bytes
 			this.out.write((content.length >>> 8)&0xFF);

@@ -12,7 +12,7 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.Subnet;
+import bgp.utils.Subnet;
 
 /**
  *    

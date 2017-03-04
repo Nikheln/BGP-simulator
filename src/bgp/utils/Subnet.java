@@ -1,4 +1,4 @@
-package bgp.core.network;
+package bgp.utils;
 
 public class Subnet extends Address {
 	

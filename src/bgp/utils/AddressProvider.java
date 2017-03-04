@@ -1,4 +1,4 @@
-package bgp.core.network;
+package bgp.utils;
 
 import bgp.core.network.packet.PacketReceiver;
 

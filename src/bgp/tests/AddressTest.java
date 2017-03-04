@@ -14,7 +14,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import bgp.core.network.Address;
+import bgp.utils.Address;
 
 @RunWith(Parameterized.class)
 public class AddressTest {

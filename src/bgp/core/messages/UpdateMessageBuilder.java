@@ -5,7 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.Subnet;
+import bgp.utils.Subnet;
 
 public class UpdateMessageBuilder {
 	

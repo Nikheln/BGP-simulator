@@ -1,4 +1,4 @@
-package bgp.core.fsm;
+package bgp.core.network.fsm;
 
 public enum State {
 	IDLE,

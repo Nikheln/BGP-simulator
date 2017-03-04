@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.junit.Test;
 
-import bgp.core.network.Subnet;
+import bgp.utils.Subnet;
 
 public class SubnetTest {
 

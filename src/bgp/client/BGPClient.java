@@ -6,11 +6,11 @@ import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
-import bgp.core.network.Address;
-import bgp.core.network.AddressProvider;
 import bgp.core.network.PacketEngine;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
+import bgp.utils.Address;
+import bgp.utils.AddressProvider;
 
 public class BGPClient implements PacketReceiver, Pingable {
 	

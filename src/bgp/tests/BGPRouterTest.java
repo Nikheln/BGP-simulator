@@ -18,7 +18,6 @@ import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.core.ASConnection;
 import bgp.core.BGPRouter;
 import bgp.core.SimulatorState;
-import bgp.core.fsm.State;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
@@ -26,9 +25,10 @@ import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.PacketEngine;
-import bgp.core.network.Subnet;
+import bgp.core.network.fsm.State;
 import bgp.ui.NetworkViewer;
 import bgp.ui.NetworkViewer.LinkingOrder;
+import bgp.utils.Subnet;
 
 public class BGPRouterTest {
 

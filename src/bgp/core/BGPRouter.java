@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import bgp.core.fsm.State;
 import bgp.core.messages.BGPMessage;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
@@ -30,17 +29,18 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.Address;
-import bgp.core.network.AddressProvider;
 import bgp.core.network.InterASInterface;
 import bgp.core.network.PacketEngine;
-import bgp.core.network.Subnet;
+import bgp.core.network.fsm.State;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
 import bgp.core.routing.RoutingEngine;
 import bgp.core.routing.SubnetNode;
 import bgp.core.trust.TrustEngine;
+import bgp.utils.Address;
+import bgp.utils.AddressProvider;
 import bgp.utils.Pair;
+import bgp.utils.Subnet;
 
 public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider {
 	

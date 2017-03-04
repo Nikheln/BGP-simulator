@@ -1,5 +1,7 @@
 package bgp.core.network;
 
+import bgp.utils.Address;
+
 /**
  * Builds IPv4 packets.
  * @author Niko

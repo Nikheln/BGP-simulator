@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 import bgp.client.BGPClient;
 import bgp.client.messages.MessageHandlers.Pingable;
-import bgp.core.network.Address;
+import bgp.utils.Address;
 
 public class SimulatorState {
 	

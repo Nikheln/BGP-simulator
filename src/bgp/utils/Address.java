@@ -1,9 +1,9 @@
-package bgp.core.network;
+package bgp.utils;
 
 import java.security.InvalidParameterException;
 
 public class Address {
-	protected final long address;
+	public final long address;
 	
 	protected Address(long address) {
 		this.address = address;

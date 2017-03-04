@@ -8,9 +8,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 import bgp.core.ASConnection;
-import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
 import bgp.core.network.packet.PacketRouter;
+import bgp.utils.Address;
 
 public class InterASInterfaceTest {
 

@@ -3,15 +3,15 @@ package bgp.core;
 import java.io.IOException;
 import java.util.TimerTask;
 
-import bgp.core.fsm.State;
-import bgp.core.fsm.StateMachine;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.messages.OpenMessage;
-import bgp.core.network.Address;
 import bgp.core.network.InterASInterface;
 import bgp.core.network.PacketEngine;
+import bgp.core.network.fsm.State;
+import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
+import bgp.utils.Address;
 import bgp.utils.Consts;
 
 public class ASConnection {

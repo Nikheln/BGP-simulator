@@ -1,4 +1,4 @@
-package bgp.core.fsm;public class StateMachine {
+package bgp.core.network.fsm;public class StateMachine {
 	
 	private State currentState;
 	
