@@ -3,11 +3,18 @@
 \bibitem{graphstreamteam2017}
 {GraphStream Team}, ``Graphstream - a dynamic graph library,'' Mar. 2017.
 
-\bibitem{rfc791}
-{Information Sciences Institute}, ``{Internet Protocol}.'' RFC 791, Sept. 1981.
+\bibitem{RFC0791}
+J.~Postel, ``{Internet Protocol},'' STD~5, RFC Editor, September 1981.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc791.txt}.
 
-\bibitem{rfc793}
-{Information Sciences Institute}, ``{Transmission Control Protocol}.'' RFC 793,
-  Sept. 1981.
+\bibitem{RFC0793}
+J.~Postel, ``{Transmission Control Protocol},'' STD~7, RFC Editor, September
+  1981.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc793.txt}.
+
+\bibitem{RFC4271}
+Y.~Rekhter, T.~Li, and S.~Hares, ``{A Border Gateway Protocol 4 (BGP-4)},'' RFC
+  4271, RFC Editor, January 2006.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc4271.txt}.
 
 \end{thebibliography}

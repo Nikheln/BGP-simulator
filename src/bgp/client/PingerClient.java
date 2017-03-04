@@ -11,7 +11,7 @@ import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
 import bgp.core.SimulatorState;
-import bgp.core.network.PacketEngine;
+import bgp.utils.PacketEngine;
 
 public class PingerClient extends BGPClient implements Pinger {
 	

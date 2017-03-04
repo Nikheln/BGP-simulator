@@ -1,6 +1,9 @@
 package bgp.tests;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,8 +12,6 @@ import java.util.List;
 import java.util.Queue;
 
 import org.junit.Test;
-
-import com.sun.xml.internal.ws.policy.spi.AssertionCreationException;
 
 import bgp.client.BGPClient;
 import bgp.client.PingerClient;
@@ -24,10 +25,10 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.PacketEngine;
 import bgp.core.network.fsm.State;
 import bgp.ui.NetworkViewer;
 import bgp.ui.NetworkViewer.LinkingOrder;
+import bgp.utils.PacketEngine;
 import bgp.utils.Subnet;
 
 public class BGPRouterTest {

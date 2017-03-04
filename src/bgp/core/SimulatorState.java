@@ -105,6 +105,9 @@ public class SimulatorState {
 		return routers.get(bgpId);
 	}
 	
+	public static Address getRouterAddress(int bgpId) {
+		return getRouter(bgpId).getAddress();
+	}
 	
 	public static void registerClient(BGPClient client) {
 		clients.put(client.getAddress().getAddress(), client);
@@ -119,7 +122,7 @@ public class SimulatorState {
 	
 	
 	/**
-	 * Serve public keys similarly to a PKI would
+	 * Serve public keys similarly to the way a PKI would
 	 * @param bgpId
 	 * @return
 	 */

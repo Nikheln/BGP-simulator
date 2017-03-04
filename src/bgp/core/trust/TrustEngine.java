@@ -10,10 +10,21 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.crypto.Cipher;
+
+import bgp.core.SimulatorState;
+import bgp.core.messages.TrustMessage;
+import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.pathattributes.AsPath;
+import bgp.utils.PacketEngine;
+import bgp.utils.Pair;
 
 public class TrustEngine implements TrustProvider {
 
@@ -26,6 +37,11 @@ public class TrustEngine implements TrustProvider {
 	
 	// 1024-bit RSA keys used to transfer trust information
 	private KeyPair kp;
+	
+
+	// A reviewer-reviewed list of requested trust values to avoid peers sending multiple values for one query
+	private final List<Pair<Integer, Integer>> trustRequests = new ArrayList<>();
+	
 	
 	// The weight given to direct trust in range 0..1
 	private final double directTrustWeight = 0.6;
@@ -149,6 +165,76 @@ public class TrustEngine implements TrustProvider {
 		// Actual vote is in the first octet by definition
 		return c.doFinal(input)[0];
 	}
+	
+	
+	public Optional<TrustMessage> decideTrustVote(UpdateMessage um) {
+		return um.getPathAttributes()
+			.stream()
+			.filter(pa -> pa instanceof AsPath)
+			.findAny()
+			.map(ap -> ((AsPath)ap).getIdSequence())
+			.flatMap(seq -> {
+				int firstNeighbour = seq.get(0);
+				int secondNeighbour = firstNeighbour;
+				
+				for (Iterator<Integer> iter = seq.iterator();
+						iter.hasNext() && firstNeighbour == secondNeighbour;
+						secondNeighbour = iter.next()) {}
+	
+				// A second-order peer was found, request trust vote
+				if (firstNeighbour != secondNeighbour) {
+					int reviewedId = firstNeighbour;
+					int reviewerId = secondNeighbour;
+					
+					trustRequests.add(new Pair<>(reviewerId, reviewedId));
+					
+					return Optional.of(new TrustMessage(reviewerId, reviewedId));
+				} else {
+					return Optional.empty();
+				}
+			});
+	}
+	
+	
+	/**
+	 * Process a given TRUST message, either responding to a query or
+	 * modifying trust based on a received response to a query
+	 * 
+	 * @param tm
+	 * @param senderAddress
+	 * @param recipientAddress
+	 */
+	public Optional<byte[]> handleTrustMessage(int ownId, TrustMessage tm, long senderAddress, long recipientAddress) {
+		int reviewerId = tm.getReviewerId();
+		byte[] reviewerKey = SimulatorState.getPublicKey(reviewerId).getEncoded();
+		int targetId = tm.getTargetId();
+		if (tm.isRequest()) {
+			// Respond to trust query
+			try {
+				byte[] encryptedVote = getEncryptedTrust(targetId, reviewerKey);
+				byte[] signature = getSignature(encryptedVote);
+				TrustMessage response = new TrustMessage(ownId, targetId, encryptedVote, signature);
+				byte[] packet = PacketEngine.buildPacket(recipientAddress, senderAddress, response.serialize());
+				
+				return Optional.of(packet);
+			} catch (Exception e) {
+			}
+		} else {
+			// Check that trust was asked for and modify it accordingly
+			boolean wasAsked = trustRequests.remove(new Pair<Long, Integer>(senderAddress, tm.getTargetId()));
+			if (wasAsked) {
+				// Modify trust
+				byte[] encryptedVote = tm.getPayload();
+				byte[] signature = tm.getSignature();
+				try {
+					handleTrustVote(targetId, reviewerKey, encryptedVote, signature);
+				} catch (Exception e) {
+				}
+			}
+		}
+		return Optional.empty();
+	}
+	
 	
 	/**
 	 * Modify the trust table based on the received message.

@@ -1,6 +1,4 @@
-package bgp.core.network;
-
-import bgp.utils.Address;
+package bgp.utils;
 
 /**
  * Builds IPv4 packets.

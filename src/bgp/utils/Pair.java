@@ -1,5 +1,13 @@
 package bgp.utils;
 
+/**
+ * A class for storing 2-tuples.
+ * 
+ * @author Niko
+ *
+ * @param <T>
+ * @param <E>
+ */
 public class Pair<T,E> {
 	private final T left;
 	private final E right;
