@@ -10,6 +10,7 @@ import bgp.core.messages.NotificationMessage.UpdateMessageError;
 import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
+import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.Subnet;
 
@@ -52,51 +53,85 @@ public class UpdateMessage extends BGPMessage {
 	protected UpdateMessage(byte[] messageContent) throws UpdateMessageException {
 		int index = HEADER_LENGTH;
 		
-		this.withdrawnRoutes = new ArrayList<>();
-		int withdrawnRoutesOctets = (messageContent[index++] << 8) + messageContent[index++];
-		
-		this.pathAttributes = new ArrayList<>();
-		int pathAttributeOctets = (messageContent[index++] << 8) + messageContent[index++];
-		
-		if (withdrawnRoutesOctets + pathAttributeOctets + 23 > messageContent.length) {
-			throw new UpdateMessageException(UpdateMessageError.MALFORMED_ATTRIBUTE_LIST);
-		}
-		for (int i = 0; i < withdrawnRoutesOctets; i++) {
-			int bml = messageContent[index++];
-			int octetCount = (int)(Math.ceil(bml/8.0));
+		try {
+			this.withdrawnRoutes = new ArrayList<>();
+			int withdrawnRoutesOctets = ((messageContent[index++] << 8)&0xFF00) + (messageContent[index++]&0xFF);
 			
-			Subnet s = bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml);
-			this.withdrawnRoutes.add(s);
-			index += octetCount;
-			i += octetCount;
-		}
-		
-		for (int i = 0; i < pathAttributeOctets; i++) {
-			int startIndex = index;
-			int pal = 0;
-			if ((messageContent[index++] & 0b00010000) == 0) {
-				// Not extended
-				index++; // Skip type code
-				pal += (messageContent[index++])&0xFF;
-			} else {
-				// Extended
-				index++; // Skip type code
-				pal += ((messageContent[index++] << 8)&0xFF00) + ((messageContent[index++])&0x00FF);
+			for (int i = 0; i < withdrawnRoutesOctets; i++) {
+				int bml = messageContent[index++];
+				int octetCount = (int)(Math.ceil(bml/8.0));
+				
+				Subnet s = bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml);
+				this.withdrawnRoutes.add(s);
+				index += octetCount;
+				i += octetCount;
 			}
 			
-			this.pathAttributes.add(PathAttribute.deserialize(Arrays.copyOfRange(messageContent, startIndex, startIndex + pal)));
-			index = startIndex + pal;
-			i += pal;
-		}
-		
-		this.NLRI = new ArrayList<>();
-		
-		while (index < messageContent.length) {
-			int bml = messageContent[index++];
-			int octetCount = (int)(Math.ceil(bml/8.0));
+			this.pathAttributes = new ArrayList<>();
+			int pathAttributeOctets = ((messageContent[index++] << 8)&0xFF00) + (messageContent[index++]&0xFF);
 			
-			this.NLRI.add(bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml));
-			index = index + octetCount;
+			if (withdrawnRoutesOctets + pathAttributeOctets + 23 > messageContent.length) {
+				throw new UpdateMessageException(UpdateMessageError.MALFORMED_ATTRIBUTE_LIST);
+			}
+			
+			for (int i = 0; i < pathAttributeOctets; i++) {
+				int startIndex = index;
+				int pal = 0;
+				if ((messageContent[index++] & 0b00010000) == 0) {
+					// Not extended
+					index++; // Skip type code
+					pal += (messageContent[index++])&0xFF;
+				} else {
+					// Extended
+					index++; // Skip type code
+					pal += ((messageContent[index++] << 8)&0xFF00) + ((messageContent[index++])&0x00FF);
+				}
+				
+				this.pathAttributes.add(PathAttribute.deserialize(Arrays.copyOfRange(messageContent, startIndex, startIndex + pal)));
+				index = startIndex + pal;
+				i += pal;
+			}
+			checkPathAttributes();
+			
+			this.NLRI = new ArrayList<>();
+			
+			while (index < messageContent.length) {
+				int bml = messageContent[index++];
+				int octetCount = (int)(Math.ceil(bml/8.0));
+				
+				this.NLRI.add(bytesToSubnet(Arrays.copyOfRange(messageContent, index, index + octetCount), bml));
+				index = index + octetCount;
+			}
+		} catch (Exception e) {
+			if (e instanceof UpdateMessageException) {
+				throw e;
+			} else {
+				throw new UpdateMessageException(UpdateMessageError.MALFORMED_ATTRIBUTE_LIST);	
+			}
+		}
+	}
+	
+	private void checkPathAttributes() throws UpdateMessageException {
+		boolean duplicate = false;
+		boolean ap = false, nh = false, o = false;
+		for (PathAttribute p : pathAttributes) {
+			if (p instanceof AsPath) {
+				duplicate = (duplicate || ap);
+				ap = true;
+			} else if (p instanceof NextHop) {
+				duplicate = (duplicate || nh);
+				nh = true;
+			} else if (p instanceof Origin) {
+				duplicate = (duplicate || o);
+				o = true;
+			} else {
+				throw new UpdateMessageException(UpdateMessageError.UNRECOGNIZED_WELL_KNOWN_ATTRIBUTE);
+			}
+		}
+		if (!(ap && nh && o)) {
+			throw new UpdateMessageException(UpdateMessageError.MISSING_WELL_KNOWN_ATTRIBUTE);
+		} else if (duplicate) {
+			throw new UpdateMessageException(UpdateMessageError.MALFORMED_ATTRIBUTE_LIST);
 		}
 	}
 	

@@ -38,6 +38,7 @@ import bgp.core.network.Subnet;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
 import bgp.core.routing.RoutingEngine;
+import bgp.core.routing.SubnetNode;
 import bgp.core.trust.TrustEngine;
 import bgp.utils.Pair;
 
@@ -202,7 +203,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					}
 				} else if (m instanceof UpdateMessage) {
 					UpdateMessage um = (UpdateMessage)m;
-					routingEngine.handleUpdateMessage(um);
+					Set<SubnetNode> replyNodes = routingEngine.handleUpdateMessage(um);
+					
 					// If UPDATE message AS_PATH has more than one peer, ask for trust vote
 					um.getPathAttributes()
 						.stream()
@@ -222,7 +224,11 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 								requestTrustMessage(secondNeighbour, firstNeighbour);
 							}
 						});
+					
 					forwardUpdateMessage(um);
+					if (!replyNodes.isEmpty()) {
+						sendRoutingInformation(senderId, replyNodes);
+					}
 				} else if (m instanceof TrustMessage) {
 					long recipientAddress = PacketEngine.extractRecipient(pkg);
 					TrustMessage tm = (TrustMessage) m;
@@ -260,7 +266,35 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		} catch (UpdateMessageException e) {
 		}
 		
-		List<byte[]> ums = routingEngine.generateInitialUpdateMessages(um);
+		List<byte[]> ums = routingEngine.generatePaddedUpdateMessages(um);
+		
+		for (byte[] msg : ums) {
+			conn.sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, msg));
+		}
+	}
+	
+	/**
+	 * Send specified routing info to a peer after receiving
+	 * route withdrawals and having knowledge of alternative routes.
+	 * AS_PATHs are padded to avoid all routes having length 1
+	 * @param recipientAsId
+	 * @param NLRIToSend
+	 */
+	public void sendRoutingInformation(int recipientAsId, Set<SubnetNode> NLRIToSend) {
+		ASConnection conn = connections.get(recipientAsId);
+		Address ownAddress = conn.getAdapter().getOwnAddress();
+		Address neighbourAddress = conn.getNeighbourAddress();
+		UpdateMessage um = null;
+		try {
+			um = new UpdateMessageBuilder()
+					.addPathAttribute(new AsPath(Arrays.asList(id)))
+					.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
+					.addPathAttribute(new Origin(1))
+					.build();
+		} catch (UpdateMessageException e) {
+		}
+		
+		List<byte[]> ums = routingEngine.generatePaddedUpdateMessages(um, NLRIToSend);
 		
 		for (byte[] msg : ums) {
 			conn.sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, msg));
@@ -363,7 +397,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		if (!toRemoveId.isPresent()) {
 			return;
 		}
-		
+		System.out.println(id + " broke connection with " + toRemoveId.get());
 		connections.remove(toRemoveId.get());	
 		try {
 			// Build an UPDATE message to inform neighbours

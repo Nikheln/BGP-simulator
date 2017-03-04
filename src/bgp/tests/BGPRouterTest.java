@@ -179,7 +179,7 @@ public class BGPRouterTest {
 	
 	@Test
 	public void testLinkBreaking() {
-		buildNetwork(LinkingOrder.LINE, 5);
+		buildNetwork(LinkingOrder.RING, 5);
 		
 		BGPRouter r3 = SimulatorState.getRouter(3);
 		BGPRouter r4 = SimulatorState.getRouter(4);
@@ -204,7 +204,7 @@ public class BGPRouterTest {
 		assertFalse(r3.getConnectedRouterIds().contains(4));
 		
 		assertNotEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
-		
+		assertEquals(2, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
 	}
 	
 	private void buildNetwork(LinkingOrder topology, int amountOfRouters) {

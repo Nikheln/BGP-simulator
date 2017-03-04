@@ -1,6 +1,7 @@
 package bgp.core.routing;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -12,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import bgp.core.messages.NotificationMessage.UpdateMessageError;
 import bgp.core.messages.UpdateMessage;
+import bgp.core.messages.UpdateMessageBuilder;
 import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
@@ -145,8 +147,9 @@ public class RoutingEngine {
 	 * 
 	 * @param um
 	 * @throws UpdateMessageException
+	 * @return Set of nodes the original sender of um should be made aware of
 	 */
-	public void handleUpdateMessage(UpdateMessage um) throws UpdateMessageException {
+	public Set<SubnetNode> handleUpdateMessage(UpdateMessage um) throws UpdateMessageException {
 		// Try to extract the mandatory Path attributes
 		AsPath ap = null;
 		NextHop nh = null;
@@ -173,11 +176,18 @@ public class RoutingEngine {
 		
 		// Remove the revoked subnets if their preferred path is the revoking one
 		Set<Subnet> deletedPaths = new HashSet<>();
+		Set<SubnetNode> replyPaths = new HashSet<>();
 		for (Subnet s : um.getWithdrawnRoutes()) {
 			SubnetNode n = getBestMatchingSubnetNode(s);
-			if (n.subnet.equals(s) && (firstHop == n.getFirstHop() || firstHop == -1)) {
-				n.delete();
-				deletedPaths.add(n.subnet);
+			if (n.subnet.equals(s)) {
+				// Exact match was found
+				if (firstHop == n.getFirstHop() || firstHop == -1) {
+					n.delete();
+					deletedPaths.add(n.subnet);	
+				} else {
+					// Revoking peer should be informed of alternative route
+					replyPaths.add(n);
+				}
 			}
 		}
 		
@@ -224,21 +234,23 @@ public class RoutingEngine {
 		
 		// Clear the routing cache to avoid issues with old information
 		routingCache.clear();
+		
+		return replyPaths;
 	}
 	
 	private int getLocalPref(int asId) {
 		return localPref.getOrDefault(asId, Consts.DEFAULT_PREF);
 	}
-
+	
 	/**
-	 * Create UPDATE messages sent as initial routing information after a new connection is created
-	 * @param builder Builder with PathAttributes set
-	 * @return List of serialized UpdateMessages to be sent to the peer
+	 * Create UPDATE message with specified NLRI
+	 * @param base UpdateMessage to add information to
+	 * @param NLRIToSend
+	 * @return List of serialized UPDATE messages
 	 */
-	public List<byte[]> generateInitialUpdateMessages(UpdateMessage base) {
-		// Group the nodes based on path length
+	public List<byte[]> generatePaddedUpdateMessages(UpdateMessage base, Set<SubnetNode> NLRIToSend) {
 		Map<Integer, Set<SubnetNode>> nodes = new HashMap<>();
-		for (Iterator<SubnetNode> iter = subnetRootNode.getSubnetNodeIterator(); iter.hasNext(); ) {
+		for (Iterator<SubnetNode> iter = NLRIToSend.iterator(); iter.hasNext();) {
 			SubnetNode n = iter.next();
 			// Do not send own default route
 			if (n.getFirstHop() > 0 && n.getLength() < 100) {
@@ -254,6 +266,7 @@ public class RoutingEngine {
 			.forEach(entry -> {
 				// Padding to match real path length
 				// Necessary to avoid the other end thinking of this as an optimal route to everything
+				
 				while (ap.getIdSequence().size() < entry.getKey()) {
 					ap.appendId(asId);
 				}
@@ -262,6 +275,21 @@ public class RoutingEngine {
 				messages.add(base.serialize());
 		});
 		return messages;
+	}
+
+	/**
+	 * Create UPDATE messages sent as initial routing information after a new connection is created
+	 * @param base {@link UpdateMessage} with PathAttributes set
+	 * @return List of serialized UPDATE messages
+	 */
+	public List<byte[]> generatePaddedUpdateMessages(UpdateMessage base) {
+		// Collect all nodes to a set
+		Set<SubnetNode> nodes = new HashSet<>();
+		for (Iterator<SubnetNode> iter = subnetRootNode.getSubnetNodeIterator(); iter.hasNext(); ) {
+			nodes.add(iter.next());
+		}
+		
+		return generatePaddedUpdateMessages(base, nodes);
 	}
 	
 	private AsPath extractAsPath(UpdateMessage b) {

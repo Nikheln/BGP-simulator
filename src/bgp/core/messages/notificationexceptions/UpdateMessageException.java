@@ -11,6 +11,7 @@ public class UpdateMessageException extends NotificationException {
 	public UpdateMessageException(UpdateMessageError error) {
 		super();
 		this.error = error;
+		this.printStackTrace();
 	}
 	
 	@Override
