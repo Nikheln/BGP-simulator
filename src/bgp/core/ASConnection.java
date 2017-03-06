@@ -6,7 +6,7 @@ import java.util.TimerTask;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.messages.OpenMessage;
-import bgp.core.network.InterASInterface;
+import bgp.core.network.InterRouterInterface;
 import bgp.core.network.fsm.State;
 import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
@@ -17,7 +17,7 @@ import bgp.utils.PacketEngine;
 public class ASConnection {
 	
 	private final BGPRouter handler;
-	private final InterASInterface adapter;
+	private final InterRouterInterface adapter;
 	private final StateMachine fsm;
 	
 	private boolean hasReceivedKeepalive;
@@ -27,13 +27,25 @@ public class ASConnection {
 	private TimerTask keepaliveChecking, keepaliveSending;
 	
 	private int neighbourId;
+	private Address ownAddress;
 	private Address neighbourAddress;
 	
 	public ASConnection(Address ownAddress, BGPRouter handler) {
-		this.adapter = new InterASInterface(ownAddress, handler, this);
+		if (ownAddress == null) {
+			throw new IllegalArgumentException("Address can not be null!");
+		}
+		if (!SimulatorState.isAddressFree(ownAddress)) {
+			throw new IllegalStateException("Own address is already reserved");
+		}
+		
+		SimulatorState.reserveAddress(ownAddress);
+		
+		
+		this.adapter = new InterRouterInterface(handler, this);
 		this.handler = handler;
 		this.fsm = new StateMachine();
 		this.fsm.changeState(State.IDLE);
+		this.ownAddress = ownAddress;
 	}
 	
 	/**
@@ -55,8 +67,8 @@ public class ASConnection {
 		this.retryCounter++;
 		OpenMessage m = new OpenMessage(handler.id,
 				Consts.DEFAULT_HOLD_DOWN_TIME,
-				adapter.getOwnAddress().getAddress());
-		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), recipient, m.serialize());
+				ownAddress.getAddress());
+		byte[] message = PacketEngine.buildPacket(ownAddress, recipient, m.serialize());
 		try {
 			adapter.sendData(message);
 		} catch (IOException e) {
@@ -106,7 +118,7 @@ public class ASConnection {
 				@Override
 				public void run() {
 					KeepaliveMessage m = new KeepaliveMessage();
-					byte[] packet = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
+					byte[] packet = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
 					try {
 						adapter.sendData(packet);
 					} catch (IOException e) {
@@ -138,12 +150,16 @@ public class ASConnection {
 		this.hasReceivedKeepalive = true;
 	}
 	
-	protected InterASInterface getAdapter() {
-		return adapter;
+	public Address getOwnAddress() {
+		return ownAddress;
 	}
 	
 	public State getCurrentState() {
 		return fsm.getCurrentState();
+	}
+	
+	public InterRouterInterface getAdapter() {
+		return adapter;
 	}
 	
 	protected void sendPacket(byte[] packet) {
@@ -176,7 +192,7 @@ public class ASConnection {
 			break;
 		}
 		
-		byte[] message = PacketEngine.buildPacket(adapter.getOwnAddress(), neighbourAddress, m.serialize());
+		byte[] message = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
 		sendPacket(message);
 		closeConnection();
 	}
@@ -191,8 +207,11 @@ public class ASConnection {
 		try {
 			adapter.close();
 		} catch (Exception e) {
-			// Failed closing the adapter
+			// Failed closing the adapter, might be already down
 		}
+
+		SimulatorState.releaseAddress(ownAddress);
+		
 		this.keepaliveSending.cancel();
 		this.keepaliveChecking.cancel();
 		this.fsm.changeState(State.IDLE);

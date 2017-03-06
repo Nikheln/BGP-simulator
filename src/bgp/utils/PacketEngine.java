@@ -120,7 +120,6 @@ public class PacketEngine {
 	public static boolean validatePacketHeader(byte[] packet) {
 		if (packet.length < 20) {
 			// Received packet is not long enough to hold header
-			System.out.println("LENGTH");
 			return false;
 		}
 		if (!verifyChecksum(packet)) {
@@ -130,19 +129,16 @@ public class PacketEngine {
 		
 		if (((packet[0]&0xF0)>>>4) != VERSION) {
 			// Invalid IP version
-			System.out.println("VERSION");
 			return false;
 		}
 		
 		if ((packet[0]&0x0F) < 5) {
 			// IHL is less than 5
-			System.out.println("IHL");
 			return false;
 		}
 		
 		if (((packet[0]&0x0F) << 2) > (((packet[2]&0xFF) << 8)&0xFF00) + (packet[3]&0xFF)) {
 			// Datagram is too short to contain header
-			System.out.println("PACKET LENGTH");
 			return false;
 		}
 		

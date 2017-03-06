@@ -28,7 +28,7 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
-import bgp.core.network.InterASInterface;
+import bgp.core.network.InterRouterInterface;
 import bgp.core.network.fsm.State;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
@@ -104,7 +104,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
-			int nextHop = routingEngine.decidePath(address, true);
+			int nextHop = routingEngine.decidePath(address);
 			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
@@ -246,13 +246,13 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 */
 	public void sendRoutingInformation(int recipientAsId) {
 		ASConnection conn = connections.get(recipientAsId);
-		Address ownAddress = conn.getAdapter().getOwnAddress();
+		Address ownAddress = conn.getOwnAddress();
 		Address neighbourAddress = conn.getNeighbourAddress();
 		UpdateMessage um = null;
 		try {
 			um = new UpdateMessageBuilder()
 					.addPathAttribute(new AsPath(Arrays.asList(id)))
-					.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
+					.addPathAttribute(new NextHop(conn.getOwnAddress().getBytes()))
 					.addPathAttribute(new Origin(1))
 					.build();
 		} catch (UpdateMessageException e) {
@@ -274,13 +274,13 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 */
 	public void sendRoutingInformation(int recipientAsId, Set<SubnetNode> NLRIToSend) {
 		ASConnection conn = connections.get(recipientAsId);
-		Address ownAddress = conn.getAdapter().getOwnAddress();
+		Address ownAddress = conn.getOwnAddress();
 		Address neighbourAddress = conn.getNeighbourAddress();
 		UpdateMessage um = null;
 		try {
 			um = new UpdateMessageBuilder()
 					.addPathAttribute(new AsPath(Arrays.asList(id)))
-					.addPathAttribute(new NextHop(conn.getAdapter().getOwnAddress().getBytes()))
+					.addPathAttribute(new NextHop(conn.getOwnAddress().getBytes()))
 					.addPathAttribute(new Origin(1))
 					.build();
 		} catch (UpdateMessageException e) {
@@ -312,8 +312,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		um.appendOwnId(id);
 		connections.forEach((asId, connection) -> {
 			if (!visitedIds.contains(asId) && connection.getCurrentState() == State.ESTABLISHED) {
-				um.changeNextHop(connection.getAdapter().getOwnAddress().getBytes());
-				byte[] umBytes = PacketEngine.buildPacket(connection.getAdapter().getOwnAddress(), connection.getNeighbourAddress(), um.serialize());
+				um.changeNextHop(connection.getOwnAddress().getBytes());
+				byte[] umBytes = PacketEngine.buildPacket(connection.getOwnAddress(), connection.getNeighbourAddress(), um.serialize());
 				sendViaInterface(umBytes, asId);
 			}
 		});
@@ -365,7 +365,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	public ASConnection getConnectionFor(int otherId) {
 		ASConnection conn = connections.computeIfAbsent(otherId, id -> new ASConnection(reserveAddress(this), this));
 		// Register this receiver to interface's address
-		packetReceivers.computeIfAbsent(conn.getAdapter().getOwnAddress().getAddress(), address -> this);
+		packetReceivers.computeIfAbsent(conn.getOwnAddress().getAddress(), address -> this);
 		return conn;
 	}
 	
@@ -391,7 +391,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		return connections.values()
 				.stream()
 				.findAny()
-				.map(conn -> conn.getAdapter().getOwnAddress())
+				.map(conn -> conn.getOwnAddress())
 				.orElse(subnet);
 	}
 	
@@ -441,16 +441,16 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			throw new IllegalArgumentException("Routers already connected");
 		}
 		ASConnection conn1 = router1.getConnectionFor(router2.id);
-		InterASInterface adapter1 = conn1.getAdapter();
+		InterRouterInterface adapter1 = conn1.getAdapter();
 		ASConnection conn2 = router2.getConnectionFor(router1.id);
-		InterASInterface adapter2 = conn2.getAdapter();
+		InterRouterInterface adapter2 = conn2.getAdapter();
 		
 		// Connect the "cables"
 		adapter1.connectNeighbourOutputStream(adapter2);
 		adapter2.connectNeighbourOutputStream(adapter1);
 		
-		conn1.start(adapter2.getOwnAddress());
-		conn2.start(adapter1.getOwnAddress());
+		conn1.start(conn2.getOwnAddress());
+		conn2.start(conn1.getOwnAddress());
 	}
 
 }

@@ -1,7 +1,6 @@
 package bgp.core.routing;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -13,7 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import bgp.core.messages.NotificationMessage.UpdateMessageError;
 import bgp.core.messages.UpdateMessage;
-import bgp.core.messages.UpdateMessageBuilder;
 import bgp.core.messages.notificationexceptions.UpdateMessageException;
 import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
@@ -29,10 +27,6 @@ public class RoutingEngine {
 	
 	private final SubnetNode subnetRootNode;
 	
-	/**
-	 * Cache used to get previously used values. Cleared every time routing info changes.
-	 */
-	private final Map<Subnet, Integer> routingCache;
 	private final Map<Integer, Integer> localPref;
 	
 	private final TrustProvider trustProvider;
@@ -42,33 +36,18 @@ public class RoutingEngine {
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		// Packets with unknown subnet will go here (drop)
 		this.subnetRootNode.setPath(-1, 0, 999);
-		this.routingCache = new ConcurrentHashMap<>();
 		this.localPref = new ConcurrentHashMap<>();
 		
 		this.trustProvider = trustProvider;
 	}
 	
 	/**
-	 * Decide a path to given address, based on current routing information
+	 * Decide the first hop for specified address
 	 * @param address
-	 * @return Router ID of NEXT_HOP to be used
-	 */
-	public int decidePath(long address, boolean useCache) {
-		SubnetNode subnetNode = getBestMatchingSubnetNode(address);
-		if (useCache) {
-			return routingCache.computeIfAbsent(subnetNode.subnet, uncachedSubnet -> subnetNode.getFirstHop());
-		} else {
-			return subnetNode.getFirstHop();
-		}
-	}
-	
-	/**
-	 * Decide the path for address, use cache
-	 * @param address
-	 * @return
+	 * @return ID of the router to hop next to
 	 */
 	public int decidePath(long address) {
-		return decidePath(address, true);
+		return getBestMatchingSubnetNode(address).getFirstHop();
 	}
 	
 	public void addRoutingInfo(Subnet subnet, int firstHop, int length, int localPref) {
@@ -85,8 +64,6 @@ public class RoutingEngine {
 				|| (localPref == n.getLocalPref() && length < n.getLength())) {
 			n.setPath(firstHop, localPref, length);
 		}
-		
-		routingCache.clear();
 	}
 	
 	
@@ -183,7 +160,7 @@ public class RoutingEngine {
 				// Exact match was found
 				if (firstHop == n.getFirstHop() || firstHop == -1) {
 					n.delete();
-					deletedPaths.add(n.subnet);	
+					deletedPaths.add(n.subnet);
 				} else {
 					// Revoking peer should be informed of alternative route
 					replyPaths.add(n);
@@ -231,9 +208,6 @@ public class RoutingEngine {
 		um.getWithdrawnRoutes().addAll(deletedPaths);
 		um.getNLRI().clear();
 		um.getNLRI().addAll(utilizedPaths);
-		
-		// Clear the routing cache to avoid issues with old information
-		routingCache.clear();
 		
 		return replyPaths;
 	}

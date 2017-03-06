@@ -6,22 +6,20 @@ import java.io.PipedOutputStream;
 import java.util.Arrays;
 
 import bgp.core.ASConnection;
-import bgp.core.SimulatorState;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.network.packet.PacketRouter;
-import bgp.utils.Address;
 import bgp.utils.Consts;
 
-public class InterASInterface implements AutoCloseable, Runnable {
+public class InterRouterInterface implements AutoCloseable, Runnable {
 	
 	/**
 	 * Maximum amount of bytes in the input buffer at any given time, 64 x MTU
 	 */
 	private static final int INPUT_BUFFER_LENGTH = Consts.MTU << 6;
 	
-	private Thread processingThread;
+	private static final int SYNCHRONIZATION_BYTES = 10;
 	
-	private final Address ownAddress;
+	private Thread processingThread;
 	
 	private final PipedInputStream in;
 	private final PipedOutputStream out;
@@ -32,17 +30,7 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	
 	private volatile boolean shutdown;
 	
-	public InterASInterface(Address ownAddress, PacketRouter handler, ASConnection conn) throws IllegalArgumentException {
-		if (ownAddress == null) {
-			throw new IllegalArgumentException("Address can not be null!");
-		}
-		if (!SimulatorState.isAddressFree(ownAddress)) {
-			throw new IllegalStateException("Own address is already reserved");
-		}
-		
-		SimulatorState.reserveAddress(ownAddress);
-		this.ownAddress = ownAddress;
-		
+	public InterRouterInterface(PacketRouter handler, ASConnection conn) throws IllegalArgumentException {
 		this.in = new PipedInputStream(INPUT_BUFFER_LENGTH);
 		this.out = new PipedOutputStream();
 		
@@ -52,22 +40,26 @@ public class InterASInterface implements AutoCloseable, Runnable {
 
 	public synchronized void sendData(byte[] content) throws IOException {
 		if (content != null && content.length > 0) {
+			// Send synchronization bytes (0x00, 0x00, 0x00, ..., 0x00, 0xFF)
+			for (int i = 0; i < SYNCHRONIZATION_BYTES-1; i++) {
+				this.out.write(0x00);
+			}
+			this.out.write(0xFF);
+			
 			// Send the amount of upcoming octets in two bytes
 			this.out.write((content.length >>> 8)&0xFF);
 			this.out.write(content.length&0xFF);
+			
+			// Send the actual packet
 			this.out.write(content, 0, content.length);
 			this.out.flush();
 		}
 	}
 	
-	public void connectNeighbourOutputStream(InterASInterface other) throws IOException {
+	public void connectNeighbourOutputStream(InterRouterInterface other) throws IOException {
 		this.in.connect(other.out);
 		processingThread = new Thread(this);
 		processingThread.start();
-	}
-	
-	public Address getOwnAddress() {
-		return ownAddress;
 	}
 
 	@Override
@@ -76,8 +68,12 @@ public class InterASInterface implements AutoCloseable, Runnable {
 		byte[] readBuffer = new byte[Consts.MTU];
 		while (!shutdown) {
 			try {
+				// Synchronization
+				while (in.read() == 0) { }
+				
 				// Read two bytes to get the octet count of the packet
 				octetCount = (((in.read()&0xFF) << 8)&0xFF00) + (in.read()&0xFF);
+				
 				in.read(readBuffer, 0, octetCount);
 				
 				handler.routePacket(Arrays.copyOf(readBuffer, octetCount), conn);
@@ -95,8 +91,6 @@ public class InterASInterface implements AutoCloseable, Runnable {
 	@Override
 	public void close() throws Exception {
 		this.shutdown = true;
-		
-		SimulatorState.releaseAddress(ownAddress);
 		
 		Exception e = null;
 		try {

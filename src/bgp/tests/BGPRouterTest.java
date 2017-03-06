@@ -165,13 +165,6 @@ public class BGPRouterTest {
 		} catch (InterruptedException e) {
 		}
 
-		NetworkViewer.showNetwork();
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		};
 		for (Pinger p : pingers) {
 			assertEquals(1.0, p.getSuccessRate(), 0.05);
 		}
@@ -187,7 +180,7 @@ public class BGPRouterTest {
 		BGPRouter r5 = SimulatorState.getRouter(5);
 		
 		// Make sure the connection works initially
-		assertEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
+		assertEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress()));
 		
 		// Break the connection R3-R4
 		r3.receivePacket(PacketEngine.buildPacket(
@@ -204,8 +197,8 @@ public class BGPRouterTest {
 
 		assertFalse(r3.getConnectedRouterIds().contains(4));
 		
-		assertNotEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
-		assertEquals(2, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress(), false));
+		assertNotEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress()));
+		assertEquals(2, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress()));
 	}
 	
 	private void buildNetwork(LinkingOrder topology, int amountOfRouters) {
