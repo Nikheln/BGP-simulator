@@ -1,11 +1,19 @@
-\documentclass[10pt,a4paper,titlepage]{report}
+\documentclass[11pt,a4paper,titlepage]{report}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
+\usepackage[margin=1in]{geometry}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{url}
+\usepackage{qtree}
 \usepackage{dirtree}
+
+\linespread{1.24} %riviväli 1.5
+%\sloppy % Vähentää tavutuksen tarvetta, "leventämällä" rivin keskellä olevia välilyöntejä.
+
+\renewcommand{\thesection}{\arabic{section}}
+
 
 \author{Group 8\\Niko Hellgren, 505174}
 \title{BGP Simulator Documentation}
@@ -14,9 +22,10 @@
 \begin{document}
 \maketitle
 \tableofcontents
+\pagebreak
 
-\section{Introduction}
-The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was utilized. A high-level overview of the program structure is presented in \ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
+\section{Introduction}\label{sec:intro}
+The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was utilized. A high-level overview of the program structure is presented in Section\ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
 
 The simulation has the following basic technical features and limitations:
 \begin{itemize}
@@ -31,16 +40,10 @@ The simulation has the following basic technical features and limitations:
 \item Routing information is transmitted using \texttt{UPDATE} messages after connection initialization and all routing table changes.
 \item Additional BGP message type, \texttt{TRUST} has been added for trust voting between routers. To avoid Man-in-the-Middle attacks (usually the router being voted on is on the transmission path of the vote), the trust votes are encrypted using 1024-bit RSA and signed using RSA with SHA-1. To avoid making key transmission overly complicated, a PKI-like functionality was made available as a globally available class, providing routers with other routers public keys. The trust implementation is discussed in more detail in Section \ref{sec:trust}.
 \item Behaviour in error situations has been implemented comprehensively, and both L1/L2 breakage, missing \texttt{KEEPALIVE} messages, and erroneous BGP messages cause the routers to drop the link and inform their neighbourhood of this. Possible issues effect the trust rate of the misbehaving router.
+\item Since the simulation is targeted at demonstrating the behaviour of BGP, logging has not been implemented.
 \end{itemize}
 
 \section{Code overview}\label{sec:hlo}
-This section discusses the code-level decisions and structure in the project. Smaller details are overlooked, and the focus is on main functioning parts of the program. A package-level visualization of the project can be found in Figure \ref{fig:packagestructure}.
-
-\paragraph{\texttt{bgp.core.SimulatorState}}
-Global state to transmit information between parts of the simulation that is either not possible or relevant to transmit via the network. This contains registry of the routers and clients (with checks for duplicate ID's), DNS-like functionality that provides information about client's addresses for data transmission purposes, and PKI-like functionality that provides routers' public keys used in trust voting.
-
-\paragraph{\texttt{bgp.core.BGPRouter}}
-Objects from this class represent the routers that make up the network. Each router is given an ID (AS ID) and a specified subnet. Routers have a list of \texttt{ASConnection}s that represent the connections to the router's neighbours. Each router also has their own \texttt{RoutingEngine} and \texttt{TrustEngine}, responsible for routing table upkeep and neighbour trust calculations, respectively. The routers implement a DHCP-like behaviour, where they provide clients with IP addresses. To avoid maintenance packets blocking the routing, there are two threads in each router: one for making packet routing decisions and one for processing BGP packets designated to current router. Despite this separation, BGP messages are transmitted via the same media as ordinary routed packets. \texttt{BGPRouter} also has functionalities that bind the routing and trust engine and various \texttt{ASConnection}s together.
 
 \begin{figure}
 \dirtree{%
@@ -64,10 +67,93 @@ Objects from this class represent the routers that make up the network. Each rou
 \label{fig:packagestructure}
 \end{figure}
 
+This section discusses the code-level decisions and structure in the project. Smaller details are overlooked, and the focus is on main functional parts of the program. A package-level visualization of the project can be found in Figure \ref{fig:packagestructure}.
+
+\paragraph{\texttt{bgp.core.SimulatorState}}
+Global state to transmit information between parts of the simulation that is either not possible or relevant to transmit via the network. This contains registry of the routers and clients (with checks for duplicate ID's), DNS-like functionality that provides information about client's addresses for data transmission purposes, and PKI-like functionality that provides routers' public keys used in trust voting.
+
+\paragraph{\texttt{bgp.core.BGPRouter}}
+Objects from this class represent the routers that make up the network. Each router is given an ID (AS ID) and a specified subnet. Routers have a list of \texttt{ASConnection}s that represent the connections to the router's neighbours. Each router also has their own \texttt{RoutingEngine} and \texttt{TrustEngine}, responsible for routing table upkeep and neighbour trust calculations, respectively. The routers implement a DHCP-like behaviour, where they provide clients with IP addresses. To avoid maintenance packets blocking the routing, there are two threads in each router: one for making packet routing decisions and one for processing BGP packets designated to current router. Despite this separation, BGP messages are transmitted via the same media as ordinary routed packets. \texttt{BGPRouter} also has functionalities that bind the features of routing and trust engine and various \texttt{ASConnection}s together.
+
+\paragraph{\texttt{bgp.core.ASConnection}}
+Class responsible for storing information concerning the state of a connection from one router to another. Contains the BGP finite state machine, information about this connection's IP address, and a reference to its \texttt{InterRouterInterface}. Is responsible for sending \texttt{OPEN} and \texttt{KEEPALIVE} messages and handling events that require sending a \texttt{NOTIFICATION}.
+
+\paragraph{\texttt{bgp.core.network.InterRouterInterface}}
+Represents the L1/L2 functionalities responsible for transferring data between routers. Contains a \texttt{PipedInputStream} and \texttt{PipedOutputStream} for transferring \texttt{byte[]} arrays with the connected neighbour, and a thread responsible for listening the input stream. Sending a packet consists of sending 10 bytes (0x00, 0x00, ..., 0x00, 0xFF) for synchronization and marking the beginning of transmission (not necessary in simulation environment), 2 bytes representing the length of the upcoming packet (MTU is therefore 64 kilobytes), and finally the IP packet as bytes.
+
+\paragraph{\texttt{bgp.core.routing.RoutingEngine}}
+Handles \texttt{UPDATE} messages, decides the routing paths and keeps up the routing table. The routing engine behaviour is discussed in more detail in Section \ref{sec:routing}.
+
+\paragraph{\texttt{bgp.core.trust.TrustEngine}}
+Calculates trust values for neighbouring nodes based on received \texttt{TRUST} messages and user-defined direct trust, creates \texttt{TRUST} requests and votes with cryptographic protections in place. Trust functionality is presented in Section \ref{sec:trust}.
+
+\paragraph{\texttt{bgp.core.messages.BGPMessage}}
+This class, together with its subclasses \texttt{OpenMessage}, \texttt{KeepaliveMessage}, etc., is used to construct BGP messages and serialize them to bit-level representation, and de-serialize them to be used by the receiving end. De-serialization phase is also responsible for message validation.
+
+\paragraph{\texttt{bgp.client.BGPClient}}
+Class representing a client of the network, connected through one of the routers. Clients have their own IP addresses and are capable of receiving IP packets. To test network functionality, a ping request and response have been implemented.
+
+\paragraph{\texttt{bgp.utils.Address}}
+\texttt{Address}, together with its subclass, \texttt{Subnet}, represent IP addresses and and subnets, respectively, and can be converted into both 4-\texttt{byte} array representation and a 64-bit \texttt{long} representation (\texttt{long} was used instead of 32-bit \texttt{int} to avoid the 1st bit, sign, affecting possible comparisons of addresses). Subnets also store the length of the prefix in question as a bitmask.
+
+\paragraph{\texttt{bgp.utils.PacketEngine}}
+Functionalities regarding the construction, validation and modification of IP packets. Packet constructions and verifications, checksum calculations, TTL modifications and field extractions are done here. As mentioned in Section \ref{sec:intro}, Version, IHL, DSCP, ECN, protocol and fragmentation fields are used, but filled with default values.
+
+
+\section{Connection initialization process}\label{sec:init}
+
+\section{Routing engine}\label{sec:routing}
+This section presents the routing engine used to make routing decisions and handle \texttt{UPDATE} messages. The decision process on receiving an \texttt{UPDATE} message is discussed first, with behaviour on link breakage and route selection presented after that.
+
+\subsection{Decision process}\label{ssec:decision}
+Upon receiving a new \texttt{UPDATE} message, the routing engine validates it and then follows the following algorithm:
+\begin{enumerate}
+\item Iterate over the withdrawn routes (if present):
+	\begin{itemize}
+	\item If exactly matching routing information is not found, do nothing.
+	\item Else, if the first hop on the \texttt{UPDATE} message matches the current best path for the subnet, remove the routing information for the subnet and store the subnet to be sent to other neighbours (if currently revoking neighbour was not on the best path, it is not necessary to inform neighbours of this, since it is not on the best path from this router).
+	\item Else store the information about the subnet and selected best path to it. This collection of non-removed subnets will be replied to the revoking peer to inform it of a possible alternative route through this router.
+	\end{itemize}
+
+\item Iterate over the Network-layer reachability information (if present):
+	\begin{itemize}
+	\item If no exact match to the subnet in question is found from the current routing table, create a new node and insert it into the correct location on the subnet tree, with first hop, path length and local preference information based on the path attributes.
+	\item Else if the local preference values of the current and possible new path differ; store/keep the better selection in the tree.
+	\item Else, store the shorter path scaled with trust values of the neighbours (presented in detail in Subsection \ref{ssec:trustcalc}).
+	\item If the selected path was changed, store it for sending to other neighbours.
+	\end{itemize}
+	
+\item Modify the received \texttt{UPDATE} message:
+	\begin{itemize}
+	\item Add own ID to the beginning of \texttt{AS\_PATH}.\footnote{\texttt{NEXT\_HOP} value is changed before serializing the message for each neighbour.}
+	\item Remove routes that were not used from Withdrawn routes list.
+	\item Remove NLRI entries that were not utilized by this router.
+	\end{itemize}
+
+\item Send the modified message to each neighbour not in the \texttt{AS\_PATH}.\footnote{Since changes not affecting routing decisions are not propagated, the original \texttt{UPDATE} message content diminishes as the information travels further in the network.}
+\item Send information about revoked subnets reachable via this router to the revoking neighbour.
+\end{enumerate}
+
+\subsection{Route withdrawals}
+If a connection to a neighbour is broken, an \texttt{UPDATE} message with all subnets that were originally reached via that neighbour attached to the Withdrawn routes list. This message is then handled according to the algorithm defined in \ref{ssec:decision}, thus removing the routing information and sending the information to all neighbours. Due to the reply feature defined in the decision process algorithm, if an alternative route exists, information about that should reach the router originally revoking connections, after the information has reached a router that has a differing best path.
+
+\subsection{Subnet tree}
+\begin{figure}
+\Tree [.0.0.0.0/0 [.0.0.0.0/1 [.$\vdots$ [.10.0.0.0/8 $\vdots$ $\vdots$ ] [.11.0.0.0/8 $\vdots$ $\vdots$ ] ] $\vdots$ ] [.128.0.0.0/1 $\vdots$ [.$\vdots$ [.192.168.100.0/24 $\vdots$ $\vdots$ ] [.192.168.101.0/24 $\vdots$ $\vdots$ ] ] ] ]
+\caption{Tree structure used to categorize the subnets}
+\label{fig:subnettree}
+\end{figure}
+
+Subnets in the 32-bit IPv4 address space can be categorized into a binary tree, with each level having prefix length one longer than the previous one (see Figure \ref{fig:subnettree}). For the purposes of the routing engine, the binary tree was not complete, but was instead populated with all the prefixes received as Network-layer reachability information (NLRI), placing each new node in the graph as a child of the longest prefix containing the new subnet. Each node contains information about the first hop to be taken to get on the currently selected path to the target subnet, local preference of the currently selected first hop and the length of the path to the goal node. The graph is started with a single node with the prefix 0.0.0.0/0, with first hop set to be the default route.
+
+\subsection{Route selection}
+Route selection is achieved by first finding the longest matching subnet by recursively looking through the subnet tree, continuing deeper into the tree as long as a child subnet node that contains the address being looked for is found, and then extracting the first hop ID from the node representing the longest matching prefix. \texttt{BGPRouter} has a map from neighbour's ID to the corresponding \texttt{ASConnection}, which can then be used to transmit the packet. If the longest matching prefix is the current router's subnet, local routing is done to either one of the clients or the router itself.
 
 \section{Trust implementation}\label{sec:trust}
 
-\section{General notes from the project}\label{sec:notes}
+\subsection{Calculating trust}\label{ssec:trustcalc}
+
+\section{Miscellaneous notes from the project}\label{sec:notes}
 \begin{itemize}
 \item When Java interprets bytes as integers, they are shifted to range -128..127. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
 \item Great built-in support for threads, timers and task executors in Java 8 made some otherwise difficult tasks (e.g. \texttt{KEEPALIVE} message sending and checking) really easy.
