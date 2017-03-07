@@ -178,14 +178,4 @@ public class PacketEngine {
 	public static int extractTTL(byte[] packet) {
 		return packet[8]&0xFF;
 	}
-	
-	public static void printPacket(byte[] packet) {
-		for (int i = 0; i < packet.length; i++) {
-			if ((i % 4) == 0) {
-				System.out.println();
-			}
-			System.out.print(String.format("%9s", Long.toBinaryString(packet[i]&0xFF) + "x").replace(' ', '0').replace('x', ' '));
-		}
-		System.out.println();
-	}
 }

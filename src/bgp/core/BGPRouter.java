@@ -131,7 +131,10 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					return;
 				}
 				
-				connections.get(nextHop).sendPacket(packet);
+				ASConnection conn = connections.get(nextHop);
+				if (conn.getCurrentState() == State.ESTABLISHED) {
+					conn.sendPacket(packet);
+				}
 			} else {
 				// No suitable next hop is found, drop packet
 				return;
