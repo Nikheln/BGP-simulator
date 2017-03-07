@@ -101,6 +101,14 @@ Functionalities regarding the construction, validation and modification of IP pa
 
 
 \section{Connection initialization process}\label{sec:init}
+The connection process of two routers is started with a static method, \texttt{BGPRouter.connectRouters}, that connects the \texttt{InterRouterInterface} adapters of the two routers (analogous to connecting the routers via a cable) and starts the process on both ends. After this, the two routers continue the process independently. On both ends, the process goes as follows:
+\begin{enumerate}
+\item Change the finite state machine in the \texttt{ASConnection} to state \texttt{CONNECT}, reset the retry counter.
+\item Send an \texttt{OPEN} message, retry if necessary. Change the FSM state to \texttt{OPEN\_SENT} or raise a notification if unable to send the message.
+\item Wait for an \texttt{OPEN} message from the other router. This process is independent of the earlier steps, so an \texttt{OPEN} message can be received before one has been sent. If current state is \texttt{CONNECT} or \texttt{OPEN\_SENT} when the \texttt{OPEN} message is received, start sending and checking for \texttt{KEEPALIVE} messages, and change the FSM state to \texttt{OPEN\_CONFIRM}.
+\item The scheduled \texttt{KEEPALIVE} checking task checks whether current state is \texttt{OPEN\_CONFIRM}, so once it has received the first \texttt{KEEPALIVE} message, it can change the current state to \texttt{ESTABLISHED} and send initial routing information to the other end. Until the state has been changed to \texttt{ESTABLISHED}, the connection can not be used to transmit ordinary IP packets.
+\item Build initial \texttt{UPDATE} messages that send the whole local routing table to the other end. To ensure correct route lengths, the \texttt{AS\_PATH} field is padded with own ID, and a different \texttt{UPDATE} message is constructed for each differing path length.
+\end{enumerate}
 
 \section{Routing engine}\label{sec:routing}
 This section presents the routing engine used to make routing decisions and handle \texttt{UPDATE} messages. The decision process on receiving an \texttt{UPDATE} message is discussed first, with behaviour on link breakage and route selection presented after that.
@@ -123,9 +131,9 @@ Upon receiving a new \texttt{UPDATE} message, the routing engine validates it an
 	\item If the selected path was changed, store it for sending to other neighbours.
 	\end{itemize}
 	
-\item Modify the received \texttt{UPDATE} message:
+\item Modify the received \texttt{UPDATE} message\footnote{\texttt{NEXT\_HOP} value is changed before serializing the message for each neighbour.}:
 	\begin{itemize}
-	\item Add own ID to the beginning of \texttt{AS\_PATH}.\footnote{\texttt{NEXT\_HOP} value is changed before serializing the message for each neighbour.}
+	\item Add own ID to the beginning of \texttt{AS\_PATH}.
 	\item Remove routes that were not used from Withdrawn routes list.
 	\item Remove NLRI entries that were not utilized by this router.
 	\end{itemize}
