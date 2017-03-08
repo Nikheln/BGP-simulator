@@ -1,0 +1,23 @@
+package bgp.simulation.tasks;
+
+import bgp.core.BGPRouter;
+import bgp.simulation.SimulatorState;
+
+public class ChangeTrustTask extends SimulationTask {
+
+	private final int changingRouter, changedRouter, delta;
+	
+	public ChangeTrustTask(int changingRouter, int changedRouter, int delta, int repetitions, long interval, long delay) {
+		super(repetitions, interval, delay);
+		this.changingRouter = changingRouter;
+		this.changedRouter = changedRouter;
+		this.delta = delta;
+	}
+
+	@Override
+	protected void runTask() throws Exception {
+		BGPRouter r = SimulatorState.getRouter(changingRouter);
+		r.getTrustEngine().changeDirectTrust(changedRouter, delta);
+	}
+
+}
