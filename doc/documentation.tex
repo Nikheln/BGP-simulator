@@ -6,6 +6,9 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{url}
+
+\usepackage{graphicx}
+\usepackage[justification=centering]{caption}
 \usepackage{qtree}
 \usepackage{dirtree}
 \usepackage{bytefield}
@@ -25,8 +28,44 @@
 \tableofcontents
 \pagebreak
 
+\section{Project specifics}\label{sec:project}
+\begin{figure}
+\begin{center}
+\begin{tabular}{r l}
+\textbf{Time taken} & \textbf{Description}\\
+9 h & Implementing the classes for BGP message types \\
+2 h & IPv4 packet implementation \\
+3 h & Routing table, initial implementation \\
+4 h & Router initialization, designing structure \\
+4 h & Implementing BGP message handling \\
+4 h & Implementing router handshake \\
+3 h & Implementing \texttt{UPDATE} message handling \\
+6 h & Routing table, complete rewrite \\
+2 h & Notification message generation and exception throwing \\
+5 h & Trust system, cryptographically protected voting \\
+2 h & Client implementation and behaviour \\
+10 h & Fixing issues
+\vspace{3mm} \\
+15 h & Writing the report \\
+3 h & Doing the presentation \\
+\hline
+\textbf{75 h} & \textbf{Total time (approx.)}
+\end{tabular}
+\end{center}
+\caption{Approximate list of time taken by various parts\\of the project, semi-chronological ordering.}
+\label{fig:timetaken}
+\end{figure}
+
+This document and the corresponding source code are done as a course project for course Protocol Processing, held in University of Turku in spring of 2017. I did the project by myself (and therefore there is no attached work distribution table), an approximate time-distribution of the various tasks is presented in Figure \ref{fig:timetaken}. I started as a part of another group, but the large size on the group and my will to gain knowledge and experience on all parts of the implementation caused me to extract myself from the previous group. As an afterthought, that was a really good idea, and gave me an excellent possibility to both learn specifics on network routing and do a semi-large ($\sim 5000$ LoC) programming project by myself. Initially being a member of a group delayed starting the project by about two weeks. Since there was no need to communicate the specifics of the implementation to other people during implementation, the planning went on mostly as a thought process, and the first implementation of most classes was on source code.
+
+The initial plan was to implement each router and its contained functionalities (routing table, connections, trust) as separate objects running their own threads, and implement the physical and data link layers of the connections between routers using some of Java's built-in stream classes, due to their good support for multi-thread implementations. The first idea of the routing table was using two tree structures: one for known subnets (presented in \ref{sec:routing}) and one for connections between routers in the network. This dual model worked rather well, until I realized there was no way to know when a link between two routers is broken, the \texttt{UPDATE} message only tells what subnets are no longer reachable. This required a complete rewrite of the routing engine. Outside the problem with the routing table implementation, the whole process was rather straightforward, and no major issues were encountered.
+
+The largest issues during the project stemmed from the definition of BGP \cite{RFC4271} focusing only on the limitations and requirements of the protocol, not so much on the implementation. Most attempts at finding information on the implementation yielded only information on how to do a specific action on a Cisco router. Apparently, implementing a BGP router is not a very common task, and the best practices of the field are hard to come by.
+
+From design point-of-view, the visualization of the network and the simulation was the hardest part. Implementing a functioning GUI would be the best solution, but that would, naturally, take a long time. For the final implementation, I settled for a text-based configuration with a graphical representation of the network.
+
 \section{Introduction}\label{sec:intro}
-The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was utilized. A high-level overview of the program structure is presented in Section\ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
+The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was attached. A high-level overview of the program structure is presented in Section\ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
 
 The simulation has the following basic technical features and limitations:
 \begin{itemize}
@@ -66,6 +105,12 @@ The simulation has the following basic technical features and limitations:
 }
 \caption{Package structure of the code}
 \label{fig:packagestructure}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=\textwidth]{uml_1}
+\caption{UML diagram of the router's main classes}
+\label{fig:uml}
 \end{figure}
 
 This section discusses the code-level decisions and structure in the project. Smaller details are overlooked, and the focus is on main functional parts of the program. A package-level visualization of the project can be found in Figure \ref{fig:packagestructure}.
@@ -201,22 +246,21 @@ After the initial fields comes the payload of the message. If the message is a v
 
 Upon receiving a \texttt{TRUST} message, the router checks the type, and depending on it either constructs a response or modifies the voted trust based on the received vote. If the type of the received message was 0, the response is constructed by setting the type bit to 1, adding own ID and target ID as the next four octets, generating a 117-byte message with 1st byte representing the \emph{inherent} trust towards the target router, encrypting the message, creating a signature of the encrypted payload and appending both of these to the message. If the type is 1, the router first checks that a trust vote request was actually sent by removing a corresponding token from the list of requests, if present. Then, the correspondence of the signature and the payload is checked using the public key of the voting party (received from the \texttt{SimulatorState}) and, if the signature matched, the encrypted vote is decrypted and the value of the first payload octet is used to modify the voted trust.
 
-\section{Miscellaneous notes from the project}\label{sec:notes}
-\begin{itemize}
-\item When Java interprets bytes as numbers, they are shifted to range -128..127, using the first bit as a sign bit. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
-\item Great built-in support for threads, timers and task executors in Java 8 made some otherwise difficult tasks (e.g. \texttt{KEEPALIVE} message sending and checking) really easy.
-\item Following object-oriented paradigm in development was both intuitive and helpful, due to the software being a simulator.
-\item Since the definition of BGP \cite{RFC4271} only specifies the limitations and the requirements of the protocol, information concerning the practices that the BGP speaker should follow was hard to come by.
-\end{itemize}
-
 \section{Topics for future development}\label{sec:future}
-The limited time and group size affected the possibilities of the implementation somewhat. This section considers features and extensions the simulation could benefit from but what could not be implemented this time.
+The limited time (10 weeks) and group size (1 person) affected the possibilities of the implementation somewhat. This section considers features and extensions the simulation could benefit from but what could not be implemented this time.
 
 From information security perspective, implementing the TCP layer functionality would increase the possible attack surface and make the simulation more realistic. Another interesting feature, that would also defer the vulnerabilities of aforementioned TCP, would be a separate control layer to transfer BGP messages. Without the need for extensive cabling or other transmission media, this would be really viable in a simulation environment.
 
 Adding a random possibility of error to the data transmission (dropping bytes, switching bits) would strain error-correction features, but since none are implemented (IP headers are validated, payload is not), this would cause unfixable erroneous behaviour in the simulation. Since the L1 transmission is done over Java's \texttt{PipedInputStream}s and \texttt{PipedOutputStream}s in the same process, the current chance of error due to erroneous transmission is close to non-existent.
 
 Current implementation of the decision process only stores the currently selected path for each subnet. Holding multiple possible routes and balancing the load on them would lessen the workload of routers along the best path to a specified router. As a side-effect, current implementation does keep the packets in the right order, since there is only one thread routing packets in each router, and all packets going between the same two routers use the same route. In case of a link going down, a router also needs to wait for alternative route information from other routers in the network, before being able to route packets to the wanted network again.
+
+\section{Miscellaneous technical notes from the project}\label{sec:notes}
+\begin{itemize}
+\item When Java interprets bytes as numbers, they are shifted to range -128..127, using the first bit as a sign bit. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
+\item Great built-in support for threads, timers and task executors in Java 8 made some otherwise difficult tasks (e.g. \texttt{KEEPALIVE} message sending and checking) really easy.
+\item Following object-oriented paradigm in development was both intuitive and helpful, mostly due to the software being a simulator.
+\end{itemize}
 
 \bibliography{documentation}
 \bibliographystyle{ieeetr}

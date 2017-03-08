@@ -1,5 +1,10 @@
 \begin{thebibliography}{1}
 
+\bibitem{RFC4271}
+Y.~Rekhter, T.~Li, and S.~Hares, ``{A Border Gateway Protocol 4 (BGP-4)},'' RFC
+  4271, RFC Editor, January 2006.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc4271.txt}.
+
 \bibitem{graphstreamteam2017}
 {GraphStream Team}, ``Graphstream - a dynamic graph library,'' Mar. 2017.
 
@@ -20,10 +25,5 @@ P.~Rantala, S.~Virtanen, and J.~Isoaho, ``Hybrid trust model for internet
 L.~He, ``A novel scheme on building a trusted ip routing infrastructure,'' in
   {\em International conference on Networking and Services (ICNS'06)},
   pp.~13--13, July 2006.
-
-\bibitem{RFC4271}
-Y.~Rekhter, T.~Li, and S.~Hares, ``{A Border Gateway Protocol 4 (BGP-4)},'' RFC
-  4271, RFC Editor, January 2006.
-\newblock \url{http://www.rfc-editor.org/rfc/rfc4271.txt}.
 
 \end{thebibliography}
