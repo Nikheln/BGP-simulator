@@ -1,12 +1,12 @@
-package bgp.core;
+package bgp.core.network;
 
 import java.io.IOException;
 import java.util.TimerTask;
 
+import bgp.core.BGPRouter;
 import bgp.core.messages.KeepaliveMessage;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.messages.OpenMessage;
-import bgp.core.network.InterRouterInterface;
 import bgp.core.network.fsm.State;
 import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
@@ -163,7 +163,7 @@ public class ASConnection {
 		return adapter;
 	}
 	
-	protected void sendPacket(byte[] packet) {
+	public void sendPacket(byte[] packet) {
 		try {
 			adapter.sendData(packet);
 		} catch (IOException e) {

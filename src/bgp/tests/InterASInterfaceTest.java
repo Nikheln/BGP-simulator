@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 
-import bgp.core.ASConnection;
+import bgp.core.network.ASConnection;
 import bgp.core.network.InterRouterInterface;
 import bgp.core.network.packet.PacketRouter;
 

@@ -28,6 +28,7 @@ import bgp.core.messages.pathattributes.AsPath;
 import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
+import bgp.core.network.ASConnection;
 import bgp.core.network.InterRouterInterface;
 import bgp.core.network.fsm.State;
 import bgp.core.network.packet.PacketReceiver;
