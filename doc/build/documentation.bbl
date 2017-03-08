@@ -12,6 +12,15 @@ J.~Postel, ``{Transmission Control Protocol},'' STD~7, RFC Editor, September
   1981.
 \newblock \url{http://www.rfc-editor.org/rfc/rfc793.txt}.
 
+\bibitem{DBLP:journals/corr/abs-1105-5518}
+P.~Rantala, S.~Virtanen, and J.~Isoaho, ``Hybrid trust model for internet
+  routing,'' {\em CoRR}, vol.~abs/1105.5518, 2011.
+
+\bibitem{1690485}
+L.~He, ``A novel scheme on building a trusted ip routing infrastructure,'' in
+  {\em International conference on Networking and Services (ICNS'06)},
+  pp.~13--13, July 2006.
+
 \bibitem{RFC4271}
 Y.~Rekhter, T.~Li, and S.~Hares, ``{A Border Gateway Protocol 4 (BGP-4)},'' RFC
   4271, RFC Editor, January 2006.

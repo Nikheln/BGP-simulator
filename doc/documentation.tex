@@ -8,6 +8,7 @@
 \usepackage{url}
 \usepackage{qtree}
 \usepackage{dirtree}
+\usepackage{bytefield}
 
 \linespread{1.24} %riviväli 1.5
 %\sloppy % Vähentää tavutuksen tarvetta, "leventämällä" rivin keskellä olevia välilyöntejä.
@@ -152,14 +153,50 @@ If a connection to a neighbour is broken, an \texttt{UPDATE} message with all su
 \label{fig:subnettree}
 \end{figure}
 
-Subnets in the 32-bit IPv4 address space can be categorized into a binary tree, with each level having prefix length one longer than the previous one (see Figure \ref{fig:subnettree}). For the purposes of the routing engine, the binary tree was not complete, but was instead populated with all the prefixes received as Network-layer reachability information (NLRI), placing each new node in the graph as a child of the longest prefix containing the new subnet. Each node contains information about the first hop to be taken to get on the currently selected path to the target subnet, local preference of the currently selected first hop and the length of the path to the goal node. The graph is started with a single node with the prefix 0.0.0.0/0, with first hop set to be the default route.
+Subnets in the 32-bit IPv4 address space can be categorized into a binary tree, with each level having prefix length one longer than the previous one (see Figure \ref{fig:subnettree}). For the purposes of the routing engine, the binary tree was not complete, but was instead populated with all the prefixes received as Network-layer reachability information (NLRI), placing each new node in the graph as a child of the longest prefix containing the new subnet. Each node contains information about the first hop to be taken to get on the currently selected path to the target subnet, local preference of the currently selected first hop and the length of the path to the goal node. The graph is started with a single node with the prefix 0.0.0.0/0, with first hop set to be the default route, if specified\footnote{Not specifying a default route causes the packets that are not designated to any known subnet with a prefix longer than 0 to be dropped.}.
 
 \subsection{Route selection}
 Route selection is achieved by first finding the longest matching subnet by recursively looking through the subnet tree, continuing deeper into the tree as long as a child subnet node that contains the address being looked for is found, and then extracting the first hop ID from the node representing the longest matching prefix. \texttt{BGPRouter} has a map from neighbour's ID to the corresponding \texttt{ASConnection}, which can then be used to transmit the packet. If the longest matching prefix is the current router's subnet, local routing is done to either one of the clients or the router itself.
 
 \section{Trust implementation}\label{sec:trust}
+The mechanism responsible for deriving the amount of trust placed upon a neighbour could be considered to be a simplified version of the solution by Rantala et al. \cite{DBLP:journals/corr/abs-1105-5518}. Each router defines an overall trust rate to each of its neighbours based on direct trust, consisting of inherent trust (specified by the operator) and observed trust (specified by neighbour's behaviour), and voted trust, with specifiable emphasis on either part.
 
 \subsection{Calculating trust}\label{ssec:trustcalc}
+Each router holds two trust values for each neighbour: inherent trust and voted trust, with voted trust initially at 0 (range $-128..127$ for easier transmission) and inherent trust at value specified by the operator. The total trust value is derived from these values as a weighted sum. For path selection purposes, this value is scaled to range $0..1$, and used to derive a \emph{normalized routing criterion with trust rate}, as originally presented by He \cite{1690485}:
+\[
+C_T=\frac{C}{T} \text{, where } C=\text{initial cost (in this case, path length), } T=\text{trust rate}
+\]
+
+\subsection{Modifying trust}\label{ssec:trustmod}
+
+Modifying the inherent trust can either be done by the operator or automated observations of the neighbours behaviour. In the current implementation, negative behaviour (dropping connection, sending invalid BGP messages) lowers the observed trust rating, while continuous normal behaviour raises it.
+
+Voted trust is changed by second-order neighbours' votes, and is defined as the average of received votes. For a more robust solution, second-order neighbours' trust values could also be defined, using them as weights for average calculation.
+
+\subsection{Voting on trust}\label{ssec:trustvote}
+
+\begin{figure}
+\begin{center}
+\begin{bytefield}{32}
+\bitheader{0-31}\\
+\bitbox{1}{T} \bitbox{7}{}
+\bitbox{16}{Reviewer ID}
+\bitbox{8}{Target ID (1/2)}\\
+\bitbox{8}{Target ID (2/2)} \bitbox[lrt]{24}{}\\
+\wordbox[lr]{2}{Payload (variable)}\\
+\skippedwords\\
+\wordbox[lrb]{1}{}
+\end{bytefield}
+\end{center}
+\caption{\texttt{TRUST} message structure}
+\label{fig:trust}
+\end{figure}
+
+Current implementation asks for trust votes from second order neighbours every time an \texttt{UPDATE} message with more than one router in the \texttt{AS\_PATH} is received. This is done by sending a \texttt{TRUST} request BGP message (presented in Figure \ref{fig:trust}). The first bit, type, specifies whether the message is a vote request (T=0) or vote response (T=1). The rest of the bits in the first octets are empty, and usable in future extensions. Following four octets specify the reviewing router ID (2 octets) and the ID of the router being voted on (2 octets).
+
+After the initial fields comes the payload of the message. If the message is a vote request, the payload field is empty, and otherwise it consists of the (encrypted) vote value and a signature for verification purposes. The vote value is 128-bytes long, and it is derived by encrypting the inherent trust value and 116 random bytes (the random values are appended to increase the message length, and therefore limiting brute-force attacks against the encryption) using 1024-bit RSA encryption. The signature is generated from the encrypted vote payload using RSA with SHA-1. The same key pairs are used for both encryption and signing purposes, and the public keys are distributed by \texttt{SimulatorState}.
+
+Upon receiving a \texttt{TRUST} message, the router checks the type, and depending on it either constructs a response or modifies the voted trust based on the received vote.
 
 \section{Miscellaneous notes from the project}\label{sec:notes}
 \begin{itemize}
