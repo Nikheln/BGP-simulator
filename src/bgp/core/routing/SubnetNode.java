@@ -18,7 +18,6 @@ public class SubnetNode {
 	protected final Set<SubnetNode> children;
 	
 	private int firstHop;
-	private int localPref;
 	private int length;
 	
 	public SubnetNode(SubnetNode parent, Subnet subnet) {
@@ -39,18 +38,13 @@ public class SubnetNode {
 		children.add(child);
 	}
 	
-	public void setPath(int firstHop, int localPref, int length) {
+	public void setPath(int firstHop, int length) {
 		this.firstHop = firstHop;
-		this.localPref = localPref;
 		this.length = length;
 	}
 	
 	public int getFirstHop() {
 		return firstHop;
-	}
-
-	public int getLocalPref() {
-		return localPref;
 	}
 
 	public int getLength() {

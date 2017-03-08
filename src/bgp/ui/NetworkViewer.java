@@ -17,7 +17,7 @@ import org.graphstream.graph.implementations.SingleGraph;
 
 import bgp.core.ASConnection;
 import bgp.core.BGPRouter;
-import bgp.core.SimulatorState;
+import bgp.simulation.SimulatorState;
 import bgp.utils.Subnet;
 
 public class NetworkViewer {

@@ -35,6 +35,7 @@ import bgp.core.network.packet.PacketRouter;
 import bgp.core.routing.RoutingEngine;
 import bgp.core.routing.SubnetNode;
 import bgp.core.trust.TrustEngine;
+import bgp.simulation.SimulatorState;
 import bgp.utils.Address;
 import bgp.utils.AddressProvider;
 import bgp.utils.PacketEngine;

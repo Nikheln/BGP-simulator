@@ -35,7 +35,7 @@ public class RoutingEngine {
 		this.asId = asId;
 		this.subnetRootNode = new SubnetNode(null, Subnet.getSubnet(0, ~0));
 		// Packets with unknown subnet will go here (drop)
-		this.subnetRootNode.setPath(-1, 0, 999);
+		this.subnetRootNode.setPath(-1, 999);
 		this.localPref = new ConcurrentHashMap<>();
 		
 		this.trustProvider = trustProvider;
@@ -60,9 +60,9 @@ public class RoutingEngine {
 		}
 		
 		if (newNode
-				|| (localPref > n.getLocalPref())
-				|| (localPref == n.getLocalPref() && length < n.getLength())) {
-			n.setPath(firstHop, localPref, length);
+				|| (localPref > getLocalPref(n.getFirstHop()))
+				|| (localPref == getLocalPref(n.getFirstHop()) && length < n.getLength())) {
+			n.setPath(firstHop, length);
 		}
 	}
 	
@@ -174,6 +174,7 @@ public class RoutingEngine {
 		for (Subnet s : um.getNLRI()) {
 			SubnetNode n = getBestMatchingSubnetNode(s);
 			boolean pathChanged = false;
+			int currentPathLocalPref = getLocalPref(n.getFirstHop());
 			
 			// With a partial match, add a new node as a child
 			boolean newNode = !n.subnet.equals(s);
@@ -182,23 +183,23 @@ public class RoutingEngine {
 				n = new SubnetNode(n, s);
 				pathChanged = true;
 				
-			} else if (localPref > n.getLocalPref()) {
+			} else if (localPref > currentPathLocalPref) {
 				// Higher preference than current path
 				pathChanged = true;
 				
-			} else if (localPref == n.getLocalPref()) {
+			} else if (localPref == currentPathLocalPref) {
 				// Same preference, compare lengths modified with trust
-				int oldTrust = 128 - trustProvider.getTrustFor(n.getFirstHop());
-				double oldLength = n.getLength()*oldTrust/255.0;
+				double oldTrust = (trustProvider.getTrustFor(n.getFirstHop()) + 128)/255.0;
+				double oldCost = n.getLength()*oldTrust;
 				
-				int newTrust = 128 - trustProvider.getTrustFor(firstHop);
-				double newLength = length*newTrust/255.0;
+				double newTrust = (trustProvider.getTrustFor(firstHop) + 128)/255.0;
+				double newCost = length*newTrust;
 				
-				pathChanged = newLength < oldLength;
+				pathChanged = newCost < oldCost;
 			}
 			
 			if (pathChanged) {
-				n.setPath(firstHop, localPref, length);
+				n.setPath(firstHop, length);
 				utilizedPaths.add(n.subnet);
 			}
 		}
@@ -214,6 +215,10 @@ public class RoutingEngine {
 	
 	private int getLocalPref(int asId) {
 		return localPref.getOrDefault(asId, Consts.DEFAULT_PREF);
+	}
+	
+	public void setLocalPref(int asId, int pref) {
+		localPref.put(asId, pref);
 	}
 	
 	/**

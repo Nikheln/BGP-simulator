@@ -10,6 +10,7 @@ import bgp.core.network.InterRouterInterface;
 import bgp.core.network.fsm.State;
 import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
+import bgp.simulation.SimulatorState;
 import bgp.utils.Address;
 import bgp.utils.Consts;
 import bgp.utils.PacketEngine;

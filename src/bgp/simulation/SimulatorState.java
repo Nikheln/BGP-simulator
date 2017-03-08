@@ -1,7 +1,9 @@
-package bgp.core;
+package bgp.simulation;
 
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,8 @@ import java.util.stream.Collectors;
 
 import bgp.client.BGPClient;
 import bgp.client.messages.MessageHandlers.Pingable;
+import bgp.core.BGPRouter;
+import bgp.simulation.tasks.SimulationTask;
 import bgp.utils.Address;
 
 public class SimulatorState {
@@ -27,9 +31,28 @@ public class SimulatorState {
 	private static final Executor clientExecutor = Executors.newFixedThreadPool(8);
 	private static final Timer clientTaskTimer = new Timer();
 	
+	private static final Timer simulationTaskTimer = new Timer();
+	
+	public static void startSimulation(int waitTime, Collection<SimulationTask> tasks) {
+		resetState();
+		
+		long simulationStartMillis = new Date().getTime() + waitTime;
+		
+		for (SimulationTask t : tasks) {
+			Date startTime = new Date(simulationStartMillis + t.getDelay());
+			
+			if (t.getRepetitions() == 1) {
+				simulationTaskTimer.schedule(t, startTime);
+			} else {
+				simulationTaskTimer.schedule(t, startTime, t.getInterval());
+			}
+		}
+	}
+	
 	public static void resetState() {
 		usedAddresses.clear();
 		routers.clear();
+		clients.clear();
 	}
 	
 	public static void reserveAddress(Address address) throws IllegalStateException {

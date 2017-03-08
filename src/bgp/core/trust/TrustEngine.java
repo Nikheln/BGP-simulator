@@ -19,10 +19,10 @@ import java.util.Optional;
 
 import javax.crypto.Cipher;
 
-import bgp.core.SimulatorState;
 import bgp.core.messages.TrustMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.pathattributes.AsPath;
+import bgp.simulation.SimulatorState;
 import bgp.utils.PacketEngine;
 import bgp.utils.Pair;
 
