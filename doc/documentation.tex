@@ -177,15 +177,18 @@ Voted trust is changed by second-order neighbours' votes, and is defined as the 
 
 \begin{figure}
 \begin{center}
-\begin{bytefield}{32}
+\begin{bytefield}[bitwidth=1.1em]{32}
 \bitheader{0-31}\\
 \bitbox{1}{T} \bitbox{7}{}
-\bitbox{16}{Reviewer ID}
-\bitbox{8}{Target ID (1/2)}\\
-\bitbox{8}{Target ID (2/2)} \bitbox[lrt]{24}{}\\
-\wordbox[lr]{2}{Payload (variable)}\\
+\bitbox{16}{Reviewer AS ID}
+\bitbox{8}{Target AS ID (1/2)}\\
+\bitbox{8}{Target AS ID (2/2)} \bitbox[lrt]{24}{}\\
+\wordbox[lr]{2}{Encrypted vote (128 bytes, only if T=1)}\\
 \skippedwords\\
-\wordbox[lrb]{1}{}
+\bitbox[lrb]{8}{} \bitbox[lrt]{24}{}\\
+\wordbox[lr]{2}{Vote signature (128 bytes, only if T=1)}\\
+\skippedwords\\
+\bitbox[lrb]{8}{} \bitbox[lt]{24}{}
 \end{bytefield}
 \end{center}
 \caption{\texttt{TRUST} message structure}
@@ -196,15 +199,24 @@ Current implementation asks for trust votes from second order neighbours every t
 
 After the initial fields comes the payload of the message. If the message is a vote request, the payload field is empty, and otherwise it consists of the (encrypted) vote value and a signature for verification purposes. The vote value is 128-bytes long, and it is derived by encrypting the inherent trust value and 116 random bytes (the random values are appended to increase the message length, and therefore limiting brute-force attacks against the encryption) using 1024-bit RSA encryption. The signature is generated from the encrypted vote payload using RSA with SHA-1. The same key pairs are used for both encryption and signing purposes, and the public keys are distributed by \texttt{SimulatorState}.
 
-Upon receiving a \texttt{TRUST} message, the router checks the type, and depending on it either constructs a response or modifies the voted trust based on the received vote.
+Upon receiving a \texttt{TRUST} message, the router checks the type, and depending on it either constructs a response or modifies the voted trust based on the received vote. If the type of the received message was 0, the response is constructed by setting the type bit to 1, adding own ID and target ID as the next four octets, generating a 117-byte message with 1st byte representing the \emph{inherent} trust towards the target router, encrypting the message, creating a signature of the encrypted payload and appending both of these to the message. If the type is 1, the router first checks that a trust vote request was actually sent by removing a corresponding token from the list of requests, if present. Then, the correspondence of the signature and the payload is checked using the public key of the voting party (received from the \texttt{SimulatorState}) and, if the signature matched, the encrypted vote is decrypted and the value of the first payload octet is used to modify the voted trust.
 
 \section{Miscellaneous notes from the project}\label{sec:notes}
 \begin{itemize}
-\item When Java interprets bytes as integers, they are shifted to range -128..127. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
+\item When Java interprets bytes as numbers, they are shifted to range -128..127, using the first bit as a sign bit. Doing bitwise shifts also easily converts the values to a larger data size (e.g. 32-bit integers) instead of dropping the overflowing bits. This caused multiple errors in initial implementations of the bit-level manipulations, and adding bitmasking (e.g. \texttt{<value>\&0xFF} to force a value to 8 bits) was necessary in most of the places to avoid issues caused by this. Lack of unsigned numbers also made value comparisons difficult at some points, since the interpretations of bytes easily flowed over to the negative numbers.
 \item Great built-in support for threads, timers and task executors in Java 8 made some otherwise difficult tasks (e.g. \texttt{KEEPALIVE} message sending and checking) really easy.
 \item Following object-oriented paradigm in development was both intuitive and helpful, due to the software being a simulator.
 \item Since the definition of BGP \cite{RFC4271} only specifies the limitations and the requirements of the protocol, information concerning the practices that the BGP speaker should follow was hard to come by.
 \end{itemize}
+
+\section{Topics for future development}\label{sec:future}
+The limited time and group size affected the possibilities of the implementation somewhat. This section considers features and extensions the simulation could benefit from but what could not be implemented this time.
+
+From information security perspective, implementing the TCP layer functionality would increase the possible attack surface and make the simulation more realistic. Another interesting feature, that would also defer the vulnerabilities of aforementioned TCP, would be a separate control layer to transfer BGP messages. Without the need for extensive cabling or other transmission media, this would be really viable in a simulation environment.
+
+Adding a random possibility of error to the data transmission (dropping bytes, switching bits) would strain error-correction features, but since none are implemented (IP headers are validated, payload is not), this would cause unfixable erroneous behaviour in the simulation. Since the L1 transmission is done over Java's \texttt{PipedInputStream}s and \texttt{PipedOutputStream}s in the same process, the current chance of error due to erroneous transmission is close to non-existent.
+
+Current implementation of the decision process only stores the currently selected path for each subnet. Holding multiple possible routes and balancing the load on them would lessen the workload of routers along the best path to a specified router. As a side-effect, current implementation does keep the packets in the right order, since there is only one thread routing packets in each router, and all packets going between the same two routers use the same route. In case of a link going down, a router also needs to wait for alternative route information from other routers in the network, before being able to route packets to the wanted network again.
 
 \bibliography{documentation}
 \bibliographystyle{ieeetr}
