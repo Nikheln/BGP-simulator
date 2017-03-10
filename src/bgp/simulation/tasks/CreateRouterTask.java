@@ -2,9 +2,10 @@ package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
 import bgp.simulation.SimulatorState;
+import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 import bgp.utils.Subnet;
 
-public class CreateRouterTask extends SimulationTask {
+public class CreateRouterTask extends SimulationTask implements TopologyChanging {
 
 	private final int routerId;
 	private final String subnet;

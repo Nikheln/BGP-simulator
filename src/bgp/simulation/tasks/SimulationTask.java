@@ -1,8 +1,12 @@
 package bgp.simulation.tasks;
 
+import java.util.Optional;
 import java.util.TimerTask;
 
 public abstract class SimulationTask extends TimerTask {
+	
+	// Simulation tasks implementing this interface cause the UI to update
+	public interface TopologyChanging { }
 	
 	public enum TaskState {
 		WAITING,
@@ -19,6 +23,8 @@ public abstract class SimulationTask extends TimerTask {
 	private final long delay;
 	
 	private TaskState state;
+	
+	private Optional<Runnable> onFinish = Optional.empty();
 	
 	public SimulationTask(int repetitions, long interval, long delay) {
 		this.repetitions = repetitions;
@@ -45,6 +51,10 @@ public abstract class SimulationTask extends TimerTask {
 		return state;
 	}
 	
+	public void onFinish(Runnable r) {
+		onFinish = Optional.ofNullable(r);
+	}
+	
 	@Override
 	public void run() {
 		state = TaskState.RUNNING;
@@ -53,6 +63,7 @@ public abstract class SimulationTask extends TimerTask {
 			runTask();	
 		} catch (Exception e) {
 			state = TaskState.FAILED;
+			e.printStackTrace();
 		}
 		
 		if (++runCounter >= repetitions) {
@@ -65,6 +76,7 @@ public abstract class SimulationTask extends TimerTask {
 			state = TaskState.WAITING;
 		}
 		
+		onFinish.ifPresent(r -> r.run());
 	}
 
 	protected abstract void runTask() throws Exception;

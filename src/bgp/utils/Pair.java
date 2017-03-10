@@ -26,6 +26,11 @@ public class Pair<T,E> {
 		return false;
 	}
 	
+	@Override
+	public int hashCode() {
+		return (left.toString() + right.toString()).hashCode();
+	}
+	
 	public T getLeft() {
 		return left;
 	}

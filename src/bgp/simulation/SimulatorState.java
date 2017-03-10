@@ -18,6 +18,8 @@ import bgp.client.BGPClient;
 import bgp.client.messages.MessageHandlers.Pingable;
 import bgp.core.BGPRouter;
 import bgp.simulation.tasks.SimulationTask;
+import bgp.simulation.tasks.SimulationTask.TopologyChanging;
+import bgp.ui.NetworkViewer;
 import bgp.utils.Address;
 
 public class SimulatorState {
@@ -33,12 +35,19 @@ public class SimulatorState {
 	
 	private static final Timer simulationTaskTimer = new Timer();
 	
-	public static void startSimulation(int waitTime, Collection<SimulationTask> tasks) {
+	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks) {
+		startSimulation(waitTime, tasks, null);
+	}
+	
+	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks, NetworkViewer viewer) {
 		resetState();
 		
 		long simulationStartMillis = new Date().getTime() + waitTime;
 		
 		for (SimulationTask t : tasks) {
+			if (viewer != null && t instanceof TopologyChanging) {
+				t.onFinish(() -> viewer.updateNetwork());
+			}
 			Date startTime = new Date(simulationStartMillis + t.getDelay());
 			
 			if (t.getRepetitions() == 1) {
@@ -158,7 +167,7 @@ public class SimulatorState {
 		return clientExecutor;
 	}
 	
-	public static void addClientTask(TimerTask t, int interval) {
+	public static void addClientTask(TimerTask t, long interval) {
 		clientTaskTimer.scheduleAtFixedRate(t, interval, interval);
 	}
 	

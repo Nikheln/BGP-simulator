@@ -25,9 +25,8 @@ import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.ASConnection;
 import bgp.core.network.fsm.State;
+import bgp.simulation.LinkingOrder;
 import bgp.simulation.SimulatorState;
-import bgp.ui.NetworkViewer;
-import bgp.ui.NetworkViewer.LinkingOrder;
 import bgp.utils.PacketEngine;
 import bgp.utils.Subnet;
 
@@ -115,16 +114,6 @@ public class BGPRouterTest {
 		
 		for (int i = 2; i <= amountOfRouters; i++) {
 			assertNotEquals(-1, SimulatorState.getRouter(i).getRoutingEngine().decidePath(c1.getAddress().getAddress()));
-		}
-		
-		if (false) {
-			NetworkViewer.showNetwork();
-			try {
-				Thread.sleep(60000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 	}
 	

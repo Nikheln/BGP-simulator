@@ -31,6 +31,7 @@ public class BGPClient implements PacketReceiver, Pingable {
 	 */
 	@Override
 	public void receivePacket(byte[] pkg) {
+		receivedPacketCount++;
 		long sender = PacketEngine.extractSender(pkg);
 		byte[] body = PacketEngine.extractBody(pkg);
 		ClientMessage cm = ClientMessage.deserialize(body);

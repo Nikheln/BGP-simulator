@@ -3,8 +3,9 @@ package bgp.simulation.tasks;
 import bgp.core.BGPRouter;
 import bgp.core.messages.NotificationMessage;
 import bgp.simulation.SimulatorState;
+import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 
-public class DisconnectRoutersTask extends SimulationTask {
+public class DisconnectRoutersTask extends SimulationTask implements TopologyChanging {
 	
 	private final int breakingRouter, routerToDisconnect;
 

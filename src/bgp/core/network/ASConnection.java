@@ -207,11 +207,10 @@ public class ASConnection {
 		handler.removeConnection(this);
 		try {
 			adapter.close();
+			SimulatorState.releaseAddress(ownAddress);
 		} catch (Exception e) {
-			// Failed closing the adapter, might be already down
+			// Failed closing the adapter or freeing the address, might be already down
 		}
-
-		SimulatorState.releaseAddress(ownAddress);
 		
 		this.keepaliveSending.cancel();
 		this.keepaliveChecking.cancel();

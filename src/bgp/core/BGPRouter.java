@@ -14,6 +14,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import bgp.core.messages.BGPMessage;
 import bgp.core.messages.KeepaliveMessage;
@@ -220,7 +221,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					forwardUpdateMessage(um);
 					
 					// If routes were withdrawn and knowledge of another route exists, send that information
-					if (!replyNodes.isEmpty()) {
+					if (!replyNodes.isEmpty() && connections.containsKey(senderId)) {
 						sendRoutingInformation(senderId, replyNodes);
 					}
 					
@@ -385,6 +386,14 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	public Set<Integer> getConnectedRouterIds() {
 		return connections.keySet();
 	}
+	
+	public List<PacketReceiver> getClients() {
+		return packetReceivers
+				.values()
+				.stream()
+				.filter(pr -> pr != this)
+				.collect(Collectors.toList());
+	}
 
 	@Override
 	public long getReceivedPacketCount() {
@@ -414,21 +423,26 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	@Override
 	public void shutdown() {
-		// Shut down all threads and timers
-		packetProcessingThread.shutdownNow();
-		maintenanceThread.shutdownNow();
+		// Stop sending KEEPALIVE
 		connectionKeepaliveTimer.cancel();
 		
 		// Inform clients
-		packetReceivers.values()
-			.stream()
-			.filter(pr -> pr != this)
-			.forEach(pr -> pr.shutdown());
+		getClients().forEach(pr -> pr.shutdown());
 		
 		// Inform peers
 		connections.values()
 			.stream()
 			.forEach(conn -> conn.raiseNotification(NotificationMessage.getCeaseError()));
+
+		// Shut down all threads
+		packetProcessingThread.shutdownNow();
+		maintenanceThread.shutdownNow();
+		
+		try {
+			SimulatorState.unregisterRouter(this);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	

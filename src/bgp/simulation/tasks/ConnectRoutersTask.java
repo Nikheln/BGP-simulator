@@ -2,8 +2,9 @@ package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
 import bgp.simulation.SimulatorState;
+import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 
-public class ConnectRoutersTask extends SimulationTask {
+public class ConnectRoutersTask extends SimulationTask implements TopologyChanging {
 	
 	private final int router1, router2;
 

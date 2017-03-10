@@ -19,6 +19,7 @@ public class PingerClient extends BGPClient implements Pinger {
 	private int pingLimit;
 	private int pingsSent;
 	private int responsesReceived;
+	private boolean stopFlag;
 
 	public PingerClient(BGPRouter router) {
 		super(router);
@@ -27,7 +28,11 @@ public class PingerClient extends BGPClient implements Pinger {
 		responsesReceived = 0;
 	}
 	
-	public void startPinging(List<Long> recipientAddresses, int pingLimit, int interval) {
+	public void startPinging(List<Long> recipientAddresses, long interval) {
+		startPinging(recipientAddresses, -1, interval);
+	}
+	
+	public void startPinging(List<Long> recipientAddresses, int pingLimit, long interval) {
 		this.pingLimit = pingLimit*recipientAddresses.size();
 		TimerTask task = new TimerTask() {
 				
@@ -48,9 +53,13 @@ public class PingerClient extends BGPClient implements Pinger {
 		SimulatorState.addClientTask(task, interval);
 	}
 	
+	public void stopPinging() {
+		this.stopFlag = true;
+	}
+	
 	@Override
 	public boolean sendPing(long recipient) {
-		if (pingsSent >= pingLimit) {
+		if (stopFlag || (pingLimit >= 0 && pingsSent >= pingLimit)) {
 			return true;
 		}
 		
