@@ -8,12 +8,23 @@ import java.util.Queue;
 import java.util.Set;
 
 public enum LinkingOrder {
-	LINE,
-	RING,
-	STAR,
-	RING_STAR,
-	CLUSTERED,
-	RANDOM;
+	CLUSTERED("Clustered"),
+	LINE("Bus"),
+	RING("Ring"),
+	STAR("Star"),
+	RING_STAR("Star + bus"),
+	RANDOM("Random");
+	
+	public final String uiText;
+	
+	private LinkingOrder(String uiText) {
+		this.uiText = uiText;
+	}
+	
+	@Override
+	public String toString() {
+		return uiText;
+	}
 	
 	public Queue<Integer> getLinkingOrder(int n) {
 		Queue<Integer> list = new LinkedList<>();

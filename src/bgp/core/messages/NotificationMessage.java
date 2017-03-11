@@ -39,6 +39,15 @@ public class NotificationMessage extends BGPMessage {
 		return body;
 	}
 	
+	@Override
+	public String toString() {
+		String ret = ErrorCode.solveType(code).name();
+		if (subcode != 0) {
+			ret += ", subcode: " + subcode;
+		}
+		return ret;
+	}
+	
 	public ErrorCode getErrorType() {
 		return ErrorCode.solveType(code);
 	}

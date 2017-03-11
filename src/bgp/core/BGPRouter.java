@@ -196,7 +196,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				if (m instanceof KeepaliveMessage && senderId != -1) {
 					connections.get(senderId).raiseKeepaliveFlag();
 				} else if (m instanceof NotificationMessage) {
-					removeConnection(connections.get(senderId));
+					connections.get(senderId).closeConnection();
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
 					addressToASId.put(senderAddress, om.getASId());
@@ -336,7 +336,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			return;
 		}
 		
-		connections.remove(toRemoveId.get());	
+		connections.remove(toRemoveId.get()).closeConnection();	
 		try {
 			// Build an UPDATE message to inform neighbours
 			UpdateMessageBuilder b = new UpdateMessageBuilder();

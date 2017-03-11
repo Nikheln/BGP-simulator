@@ -35,19 +35,49 @@ public class SimulatorState {
 	
 	private static final Timer simulationTaskTimer = new Timer();
 	
+	private static SimulationState state = SimulationState.NOT_STARTED;
+	
+	public static SimulationState getSimulationState() {
+		return state;
+	}
+	
+	private static void changeState(SimulationState newState) {
+		state = newState;
+		stateChangeListeners.forEach(r -> r.run());
+	}
+	
+	private static final List<Runnable> stateChangeListeners = new ArrayList<>();
+	
+	public static void registerStateChangeListener(Runnable r) {
+		stateChangeListeners.add(r);
+	}
+	
+	public enum SimulationState {
+		NOT_STARTED,
+		STARTED,
+		PAUSED,
+		FINISHED,
+		ERROR;
+	}
+	
+	
 	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks) {
 		startSimulation(waitTime, tasks, null);
 	}
 	
 	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks, NetworkViewer viewer) {
 		resetState();
+		changeState(SimulationState.STARTED);
 		
 		long simulationStartMillis = new Date().getTime() + waitTime;
 		
 		for (SimulationTask t : tasks) {
-			if (viewer != null && t instanceof TopologyChanging) {
-				t.onFinish(() -> viewer.updateNetwork());
-			}
+			t.onFinish(() -> {
+				if (viewer != null && t instanceof TopologyChanging) {
+					viewer.updateNetwork();
+				}
+			});
+			
 			Date startTime = new Date(simulationStartMillis + t.getDelay());
 			
 			if (t.getRepetitions() == 1) {
@@ -56,6 +86,10 @@ public class SimulatorState {
 				simulationTaskTimer.schedule(t, startTime, t.getInterval());
 			}
 		}
+	}
+	
+	public static void stopSimulation() {
+		simulationTaskTimer.cancel();
 	}
 	
 	public static void resetState() {

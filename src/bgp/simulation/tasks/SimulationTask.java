@@ -5,6 +5,32 @@ import java.util.TimerTask;
 
 public abstract class SimulationTask extends TimerTask {
 	
+	public enum SimulationTaskType {
+		NONE(""),
+		GENERATE_NETWORK("Auto-generate network"),
+		ADD_CLIENTS("Add clients"),
+		CHANGE_LOCAL_PREF("Change local preference"),
+		CHANGE_TRUST("Change direct trust"),
+		CONNECT_ROUTERS("Connect routers"),
+		CREATE_ROUTER("Create router"),
+		DELETE_ROUTER("Delete router"),
+		DISCONNECT_ROUTERS("Disconnect two routers"),
+		START_GENERATING_TRAFFIC("Start generating traffic"),
+		STOP_GENERATING_TRAFFIC("Stop generating traffic");
+		
+		public final String uiText;
+		
+		private SimulationTaskType(String uiText) {
+			this.uiText = uiText;
+		}
+		
+		@Override
+		public String toString() {
+			return uiText;
+		}
+		
+	}
+	
 	// Simulation tasks implementing this interface cause the UI to update
 	public interface TopologyChanging { }
 	
