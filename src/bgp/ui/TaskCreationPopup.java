@@ -3,6 +3,8 @@ package bgp.ui;
 import java.awt.Container;
 import java.awt.event.WindowEvent;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import javax.swing.BoxLayout;
@@ -12,15 +14,26 @@ import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.text.NumberFormatter;
 
 import bgp.simulation.LinkingOrder;
+import bgp.simulation.SimulatorState;
+import bgp.simulation.SimulatorState.SimulationState;
 import bgp.simulation.tasks.AddClientsTask;
 import bgp.simulation.tasks.ChangeLocalPrefTask;
+import bgp.simulation.tasks.ChangeTrustTask;
+import bgp.simulation.tasks.ConnectRoutersTask;
+import bgp.simulation.tasks.CreateRouterTask;
+import bgp.simulation.tasks.DeleteRouterTask;
+import bgp.simulation.tasks.DisconnectRoutersTask;
 import bgp.simulation.tasks.GenerateNetworkTask;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.SimulationTaskType;
+import bgp.simulation.tasks.StartGeneratingTrafficTask;
+import bgp.simulation.tasks.StopGeneratingTrafficTask;
 
+@SuppressWarnings("serial")
 public class TaskCreationPopup extends JFrame {
 
 	private static final long serialVersionUID = 1L;
@@ -71,21 +84,21 @@ public class TaskCreationPopup extends JFrame {
 		case CHANGE_LOCAL_PREF:
 			return new ChangeLocalPrefEditor();
 		case CHANGE_TRUST:
-			break;
+			return new ChangeTrustEditor();
 		case CONNECT_ROUTERS:
-			break;
+			return new ConnectRoutersEditor();
 		case CREATE_ROUTER:
-			break;
+			return new CreateRouterTaskEditor();
 		case DELETE_ROUTER:
-			break;
+			return new DeleteRouterTaskEditor();
 		case DISCONNECT_ROUTERS:
-			break;
+			return new DisconnectRoutersTaskEditor();
 		case GENERATE_NETWORK:
 			return new GenerateNetworkEditor();
 		case START_GENERATING_TRAFFIC:
-			break;
+			return new StartGeneratingTrafficTaskEditor();
 		case STOP_GENERATING_TRAFFIC:
-			break;
+			return new StopGeneratingTrafficTaskEditor();
 		}
 		return null;
 	}
@@ -109,6 +122,7 @@ public class TaskCreationPopup extends JFrame {
 		private TaskEditor() {
 			setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 			add(delayField);
+			delayField.setVisible(SimulatorState.getSimulationState() != SimulationState.STARTED);
 		}
 		
 		protected abstract SimulationTask getTask();
@@ -151,15 +165,12 @@ public class TaskCreationPopup extends JFrame {
 	}
 	
 	private class GenerateNetworkEditor extends TaskEditor {
-		private final JComboBox<LinkingOrder> topologySelector;
-		private final NumberFieldWithTitle networkSize;
+		private final JComboBox<LinkingOrder> topologySelector = new JComboBox<>(LinkingOrder.values());;
+		private final NumberFieldWithTitle networkSize = new NumberFieldWithTitle("Amount of routers");;
 		
 		public GenerateNetworkEditor() {
 			super();
-			topologySelector = new JComboBox(LinkingOrder.values());
 			add(topologySelector);
-			
-			networkSize = new NumberFieldWithTitle("Amount of routers");
 			add(networkSize);
 		}
 
@@ -167,7 +178,167 @@ public class TaskCreationPopup extends JFrame {
 		protected SimulationTask getTask() {
 			return new GenerateNetworkTask(topologySelector.getItemAt(topologySelector.getSelectedIndex()), networkSize.getValue());
 		}
+	}
+	
+	private class ChangeTrustEditor extends TaskEditor {
+		private NumberFieldWithTitle changingRouterIdField = new NumberFieldWithTitle("ID of the changing router");
+		private NumberFieldWithTitle targetIdField = new NumberFieldWithTitle("ID of the target router");
+		private NumberFieldWithTitle trustDeltaField = new NumberFieldWithTitle("Change in trust", -127, 128);
 		
+		
+		public ChangeTrustEditor() {
+			super();
+			add(changingRouterIdField);
+			add(targetIdField);
+			add(trustDeltaField);
+		}
+		
+		@Override
+		protected SimulationTask getTask() {
+			return new ChangeTrustTask(changingRouterIdField.getValue(),
+					targetIdField.getValue(), trustDeltaField.getValue(),
+					1, 0, delayField.getValue());
+		}
+		
+	}
+	
+	private class ConnectRoutersEditor extends TaskEditor {
+		private NumberFieldWithTitle router1IdField = new NumberFieldWithTitle("ID of the first router");
+		private NumberFieldWithTitle router2IdField = new NumberFieldWithTitle("ID of the second router");
+		
+		public ConnectRoutersEditor() {
+			super();
+			add(router1IdField);
+			add(router2IdField);
+		}
+
+		@Override
+		protected SimulationTask getTask() {
+			return new ConnectRoutersTask(router1IdField.getValue(), router2IdField.getValue(), delayField.getValue());
+		}
+		
+	}
+	
+	private class CreateRouterTaskEditor extends TaskEditor {
+		private NumberFieldWithTitle routerIdField = new NumberFieldWithTitle("ID of the router");
+		private FieldWithTitle subnetField = new FieldWithTitle("Subnet of the router (CIDR notation)");
+
+		public CreateRouterTaskEditor() {
+			super();
+			subnetField.setText("0.0.0.0/0");
+			add(routerIdField);
+			add(subnetField);
+		}
+		
+		@Override
+		protected SimulationTask getTask() {
+			return new CreateRouterTask(routerIdField.getValue(), subnetField.getValue(), delayField.getValue());
+		}
+		
+	}
+	
+	private class DeleteRouterTaskEditor extends TaskEditor {
+		private NumberFieldWithTitle routerIdField = new NumberFieldWithTitle("ID of the router");
+		
+		public DeleteRouterTaskEditor() {
+			super();
+			add(routerIdField);
+		}
+
+		@Override
+		protected SimulationTask getTask() {
+			return new DeleteRouterTask(routerIdField.getValue(), delayField.getValue());
+		}
+		
+	}
+	
+	private class DisconnectRoutersTaskEditor extends TaskEditor {
+		private NumberFieldWithTitle router1IdField = new NumberFieldWithTitle("ID of the first router");
+		private NumberFieldWithTitle router2IdField = new NumberFieldWithTitle("ID of the second router");
+		
+		public DisconnectRoutersTaskEditor() {
+			super();
+			add(router1IdField);
+			add(router2IdField);
+		}
+
+		@Override
+		protected SimulationTask getTask() {
+			return new DisconnectRoutersTask(router1IdField.getValue(),
+					router2IdField.getValue(), delayField.getValue());
+		}
+		
+	}
+	
+	private class StartGeneratingTrafficTaskEditor extends TaskEditor {
+		private NumberFieldWithTitle routerIdField = new NumberFieldWithTitle("ID of the source router");
+		private FieldWithTitle targetIdsField = new FieldWithTitle("Target network ID's (comma separated)");
+		private NumberFieldWithTitle intervalField = new NumberFieldWithTitle("Time between pings (ms)");
+		
+		public StartGeneratingTrafficTaskEditor() {
+			super();
+			add(routerIdField);
+			add(targetIdsField);
+			add(intervalField);
+		}
+
+		@Override
+		protected SimulationTask getTask() {
+			List<Integer> targets = new ArrayList<>();
+			for (String id : targetIdsField.getValue().split(",")) {
+				try {
+					targets.add(Integer.parseInt(id.trim()));
+				} catch (Exception e) {
+					
+				}
+			}
+			StartGeneratingTrafficTask task = new StartGeneratingTrafficTask(routerIdField.getValue(), targets, intervalField.getValue(), delayField.getValue());
+			generatorTasks.add(task);
+			return task;
+		}
+		
+	}
+	
+	public static List<StartGeneratingTrafficTask> generatorTasks = new ArrayList<>();
+	
+	private class StopGeneratingTrafficTaskEditor extends TaskEditor {
+		private JComboBox<StartGeneratingTrafficTask> taskToStop = new JComboBox<>();
+		
+		public StopGeneratingTrafficTaskEditor() {
+			generatorTasks.forEach(task -> taskToStop.addItem(task));
+			add(taskToStop);
+		}
+
+		@Override
+		protected SimulationTask getTask() {
+			return new StopGeneratingTrafficTask(taskToStop.getItemAt(taskToStop.getSelectedIndex()), delayField.getValue());
+		}
+		
+	}
+	
+	class FieldWithTitle extends JPanel {
+		private static final long serialVersionUID = 1L;
+		private final JLabel label;
+		private final JTextField field;
+		
+		public FieldWithTitle(String title) {
+			super();
+			label = new JLabel(title);
+			
+			field = new JTextField();
+			field.setColumns(8);
+			
+			add(label);
+			add(field);
+		}
+		
+		public void setText(String text) {
+			field.setText(text);
+		}
+		
+		public String getValue() {
+			return field.getText();
+		}
 	}
 	
 	class NumberFieldWithTitle extends JPanel {
@@ -176,18 +347,25 @@ public class TaskCreationPopup extends JFrame {
 		private final JLabel label;
 		private final JFormattedTextField field;
 		
+
 		public NumberFieldWithTitle(String title) {
+			this(title, 0, Integer.MAX_VALUE);
+		}
+		
+		public NumberFieldWithTitle(String title, int minValue, int maxValue) {
+			super();
 			label = new JLabel(title);
 			
 			formatter = new NumberFormatter(NumberFormat.getInstance());
 			formatter.setValueClass(Integer.class);
-			formatter.setMinimum(0);
-			formatter.setMaximum(Integer.MAX_VALUE);
+			formatter.setMinimum(minValue);
+			formatter.setMaximum(maxValue);
 			formatter.setAllowsInvalid(false);
 			formatter.setCommitsOnValidEdit(true);
 			
 			
 			field = new JFormattedTextField(formatter);
+			field.setText("0");
 			field.setColumns(8);
 			
 			add(label);

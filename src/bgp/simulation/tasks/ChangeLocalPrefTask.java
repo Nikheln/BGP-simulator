@@ -20,4 +20,8 @@ public class ChangeLocalPrefTask extends SimulationTask {
 		r.getRoutingEngine().setLocalPref(targetRouter, newLocalPref);
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.CHANGE_LOCAL_PREF;
+	}
 }

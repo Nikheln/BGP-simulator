@@ -84,6 +84,7 @@ public class InterRouterInterface implements AutoCloseable, Runnable {
 
 	@Override
 	public void close() throws Exception {
+		new Exception().printStackTrace();
 		this.shutdown = true;
 		Exception e = null;
 		try {

@@ -10,8 +10,10 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 
 import org.graphstream.ui.swingViewer.ViewPanel;
 import org.graphstream.ui.view.Viewer;
@@ -19,6 +21,7 @@ import org.graphstream.ui.view.Viewer;
 import bgp.simulation.SimulatorState;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.SimulationTaskType;
+import bgp.simulation.tasks.SimulationTask.TaskState;
 
 public class MainView extends JFrame {
 	
@@ -65,7 +68,8 @@ public class MainView extends JFrame {
 		taskContainer = new JPanel();
 		taskContainer.setLayout(new BoxLayout(taskContainer, BoxLayout.Y_AXIS));
 		taskContainer.setSize(WINDOW_WIDTH - WINDOW_HEIGHT, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
-		pane.add(taskContainer);
+		taskContainer.setLocation(WINDOW_HEIGHT, 0);
+		pane.add(new JScrollPane(taskContainer));
 		
 		// Control buttons
 		controlButtonContainer = new JPanel();
@@ -114,6 +118,7 @@ public class MainView extends JFrame {
 	private final List<SimulationTask> tasks = new ArrayList<>();
 	
 	private void processNewTask(SimulationTask task) {
+		System.out.println(SimulatorState.getSimulationState());
 		switch (SimulatorState.getSimulationState()) {
 		case ERROR:
 			JOptionPane.showMessageDialog(this, "Error in simulation, task not executed");
@@ -122,16 +127,63 @@ public class MainView extends JFrame {
 			JOptionPane.showMessageDialog(this, "Simulation finished, task not executed");
 			return;
 		case NOT_STARTED:
+			addTaskPanel(task);
 			tasks.add(task);
 			break;
 		case PAUSED:
 			return;
 		case STARTED:
-			task.run();
+			addTaskPanel(task);
+			tasks.add(task);
+			SimulatorState.runTaskNow(task);
 			break;
 		
 		}
 	}
+	
+	private void addTaskPanel(SimulationTask task) {
+		int index = (int) tasks.stream()
+				.map(t -> t.getDelay())
+				.filter(delay -> delay < task.getDelay())
+				.count();
+		
+		taskContainer.add(new TaskPanel(task), index);
+		taskContainer.invalidate();
+	}
+	
+	private class TaskPanel extends JPanel {
+		private JLabel info;
+		private JButton cancelButton;
+		private String prefix, suffix;
+		
+		public TaskPanel(SimulationTask task) {
+			super();
+			
+			prefix = "<html><b>" + task.getType().toString() + "</b> (" + task.getDelay() + " ms)<br>Status: ";
+			suffix = "</html>";
+			info = new JLabel(prefix + task.getState() + suffix);
+			cancelButton = new JButton("Cancel ");
+			cancelButton.addActionListener(e -> {
+				cancelButton.setEnabled(false);
+				task.cancelTask();
+			});
+
+			add(info);
+			add(cancelButton);
+			
+			task.addStateChangeListener(() -> {
+				updateStatus(task.getState());
+				if (task.getState() != TaskState.WAITING) {
+					cancelButton.setEnabled(false);
+				}
+			});
+		}
+		
+		public void updateStatus(TaskState newState) {
+			info.setText(prefix + newState + suffix);
+		}
+	}
+	
 
 	public static void main(String[] args) {
 		MainView v = new MainView();

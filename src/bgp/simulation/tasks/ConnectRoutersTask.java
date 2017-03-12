@@ -22,4 +22,8 @@ public class ConnectRoutersTask extends SimulationTask implements TopologyChangi
 		BGPRouter.connectRouters(r1, r2);
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.CONNECT_ROUTERS;
+	}
 }

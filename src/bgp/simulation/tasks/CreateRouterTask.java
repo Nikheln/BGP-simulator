@@ -10,7 +10,7 @@ public class CreateRouterTask extends SimulationTask implements TopologyChanging
 	private final int routerId;
 	private final String subnet;
 	
-	public CreateRouterTask(long delay, int routerId, String subnet) {
+	public CreateRouterTask(int routerId, String subnet, long delay) {
 		super(1, 0, delay);
 		this.routerId = routerId;
 		this.subnet = subnet;
@@ -21,6 +21,11 @@ public class CreateRouterTask extends SimulationTask implements TopologyChanging
 		BGPRouter r = new BGPRouter(routerId, Subnet.getSubnet(subnet));
 		
 		SimulatorState.registerRouter(r);
+	}
+
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.CREATE_ROUTER;
 	}
 
 }

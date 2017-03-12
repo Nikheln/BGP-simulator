@@ -52,4 +52,9 @@ public class GenerateNetworkTask extends SimulationTask implements TopologyChang
 		}
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.GENERATE_NETWORK;
+	}
+
 }

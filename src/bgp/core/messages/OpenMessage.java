@@ -26,9 +26,9 @@ public class OpenMessage extends BGPMessage {
          speaker.  The value of the BGP Identifier is determined upon
          startup and is the same for every local interface and BGP peer.
 	 */
-	public OpenMessage(int asId, int holdTime, long bgpId) {
+	public OpenMessage(int asId, long holdTime, long bgpId) {
 		this.asId = asId;
-		this.holdTime = holdTime;
+		this.holdTime = (int)(holdTime/1000);
 		this.bgpId = bgpId;
 	}
 	

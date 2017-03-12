@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import bgp.client.PingerClient;
+import bgp.core.BGPRouter;
 import bgp.simulation.SimulatorState;
 
 public class StartGeneratingTrafficTask extends SimulationTask {
@@ -29,14 +30,27 @@ public class StartGeneratingTrafficTask extends SimulationTask {
 	public Optional<PingerClient> getPingerClient() {
 		return Optional.ofNullable(pinger);
 	}
+	
+	@Override
+	public String toString() {
+		return sourceRouter + " -> "
+				+ destinationRouters.stream().map(id -> id.toString()).collect(Collectors.joining(", "))
+				+ " (" + frequency + " ms)";
+	}
 
 	@Override
 	protected void runTask() throws Exception {
-		pinger = new PingerClient(SimulatorState.getRouter(sourceRouter));
+		BGPRouter r = SimulatorState.getRouter(sourceRouter);
+		if (r == null) {
+			throw new Exception();
+		}
+		pinger = new PingerClient(r);
 		List<Long> recipientAddresses = destinationRouters
 				.stream()
 				// Map ID's to routers
 				.map(id -> SimulatorState.getRouter(id))
+				// Filter unfound routers
+				.filter(router -> router != null)
 				// Extract clients as PacketReceiver's from the routers
 				.flatMap(router -> router.getClients().stream())
 				// Map the clients to their addresses (as long)
@@ -45,6 +59,11 @@ public class StartGeneratingTrafficTask extends SimulationTask {
 				.collect(Collectors.toList());
 		
 		pinger.startPinging(recipientAddresses, frequency);
+	}
+
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.START_GENERATING_TRAFFIC;
 	}
 
 }

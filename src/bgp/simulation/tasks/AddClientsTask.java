@@ -23,4 +23,8 @@ public class AddClientsTask extends SimulationTask {
 		}
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.ADD_CLIENTS;
+	}
 }

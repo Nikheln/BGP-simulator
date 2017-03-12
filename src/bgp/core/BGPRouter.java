@@ -195,7 +195,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				
 				if (m instanceof KeepaliveMessage && senderId != -1) {
 					connections.get(senderId).raiseKeepaliveFlag();
-				} else if (m instanceof NotificationMessage) {
+				} else if (m instanceof NotificationMessage && senderId != -1) {
 					connections.get(senderId).closeConnection();
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;

@@ -28,4 +28,8 @@ public class DisconnectRoutersTask extends SimulationTask implements TopologyCha
 		}
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.DISCONNECT_ROUTERS;
+	}
 }

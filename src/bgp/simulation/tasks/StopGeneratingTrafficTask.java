@@ -14,4 +14,9 @@ public class StopGeneratingTrafficTask extends SimulationTask {
 		this.taskToStop.getPingerClient().get().stopPinging();
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.STOP_GENERATING_TRAFFIC;
+	}
+
 }

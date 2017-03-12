@@ -17,4 +17,8 @@ public class DeleteRouterTask extends SimulationTask implements TopologyChanging
 		SimulatorState.getRouter(routerId).shutdown();
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.DELETE_ROUTER;
+	}
 }

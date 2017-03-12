@@ -20,4 +20,8 @@ public class ChangeTrustTask extends SimulationTask {
 		r.getTrustEngine().changeDirectTrust(changedRouter, delta);
 	}
 
+	@Override
+	public SimulationTaskType getType() {
+		return SimulationTaskType.CHANGE_TRUST;
+	}
 }

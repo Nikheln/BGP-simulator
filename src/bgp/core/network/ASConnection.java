@@ -67,7 +67,7 @@ public class ASConnection {
 					retryCounter++;
 					OpenMessage m = new OpenMessage(handler.id,
 							Consts.DEFAULT_HOLD_DOWN_TIME,
-							handler.getAddress().getAddress());
+							ownAddress.getAddress());
 					byte[] message = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
 					
 					sendPacket(message);
@@ -121,6 +121,7 @@ public class ASConnection {
 					try {
 						adapter.sendData(packet);
 					} catch (IOException e) {
+						e.printStackTrace();
 						// Error sending KEEPALIVE
 						raiseNotification(NotificationMessage.getCeaseError());
 					}
@@ -131,7 +132,7 @@ public class ASConnection {
 			// Start sending KEEPALIVE messages
 			handler.registerKeepaliveTask(keepaliveSending, 20, Consts.DEFAULT_KEEPALIVE_INTERVAL);
 			// Start checking that KEEPALIVE messages have come
-			handler.registerKeepaliveTask(keepaliveChecking, 500, m.getHoldTime());
+			handler.registerKeepaliveTask(keepaliveChecking, 500, m.getHoldTime()*1000);
 			
 			fsm.changeState(State.OPEN_CONFIRM);
 		}
@@ -143,6 +144,10 @@ public class ASConnection {
 	
 	public void raiseKeepaliveFlag() {
 		this.hasReceivedKeepalive = true;
+	}
+	
+	public boolean isKeepaliveReceived() {
+		return hasReceivedKeepalive;
 	}
 	
 	public Address getOwnAddress() {
@@ -186,7 +191,8 @@ public class ASConnection {
 		default:
 			break;
 		}
-		
+		System.out.println(ownAddress);
+		new Exception().printStackTrace();
 		try {
 			byte[] message = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
 			sendPacket(message);

@@ -33,7 +33,7 @@ public class SimulatorState {
 	private static final Executor clientExecutor = Executors.newFixedThreadPool(8);
 	private static final Timer clientTaskTimer = new Timer();
 	
-	private static final Timer simulationTaskTimer = new Timer();
+	private static Timer simulationTaskTimer = new Timer();
 	
 	private static SimulationState state = SimulationState.NOT_STARTED;
 	
@@ -65,8 +65,12 @@ public class SimulatorState {
 		startSimulation(waitTime, tasks, null);
 	}
 	
+	private static NetworkViewer networkViewer;
+	
 	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks, NetworkViewer viewer) {
+		networkViewer = viewer;
 		resetState();
+		simulationTaskTimer = new Timer();
 		changeState(SimulationState.STARTED);
 		
 		long simulationStartMillis = new Date().getTime() + waitTime;
@@ -88,8 +92,19 @@ public class SimulatorState {
 		}
 	}
 	
+	public static void runTaskNow(SimulationTask task) {
+		boolean updateView = networkViewer != null && task instanceof TopologyChanging;
+		
+		task.run();
+		
+		if (updateView) {
+			networkViewer.updateNetwork();
+		}
+	}
+	
 	public static void stopSimulation() {
 		simulationTaskTimer.cancel();
+		changeState(SimulationState.NOT_STARTED);
 	}
 	
 	public static void resetState() {

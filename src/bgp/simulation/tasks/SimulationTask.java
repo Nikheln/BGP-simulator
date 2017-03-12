@@ -1,5 +1,7 @@
 package bgp.simulation.tasks;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.TimerTask;
 
@@ -35,10 +37,22 @@ public abstract class SimulationTask extends TimerTask {
 	public interface TopologyChanging { }
 	
 	public enum TaskState {
-		WAITING,
-		RUNNING,
-		FINISHED,
-		FAILED;
+		WAITING("Waiting..."),
+		RUNNING("Running"),
+		FINISHED("Finished"),
+		FAILED("Failed"),
+		CANCELED("Canceled");
+		
+		private String uiText;
+		
+		private TaskState(String uiText) {
+			this.uiText = uiText;
+		}
+		
+		@Override
+		public String toString() {
+			return uiText;
+		}
 	}
 	
 	// Amount of times the task should be repeated, or 0 if indefinitely
@@ -51,6 +65,7 @@ public abstract class SimulationTask extends TimerTask {
 	private TaskState state;
 	
 	private Optional<Runnable> onFinish = Optional.empty();
+	private List<Runnable> stateChangeListeners = new ArrayList<>();
 	
 	public SimulationTask(int repetitions, long interval, long delay) {
 		this.repetitions = repetitions;
@@ -81,14 +96,31 @@ public abstract class SimulationTask extends TimerTask {
 		onFinish = Optional.ofNullable(r);
 	}
 	
+	private void setState(TaskState newState) {
+		this.state = newState;
+		stateChangeListeners.forEach(Runnable::run);
+	}
+	
+	public void cancelTask() {
+		this.state = TaskState.CANCELED;
+		this.cancel();
+	}
+	
+	public void addStateChangeListener(Runnable r) {
+		stateChangeListeners.add(r);
+	}
+	
 	@Override
 	public void run() {
-		state = TaskState.RUNNING;
+		if (state == TaskState.CANCELED) {
+			return;
+		}
+		setState(TaskState.RUNNING);
 		
 		try {
 			runTask();	
 		} catch (Exception e) {
-			state = TaskState.FAILED;
+			setState(TaskState.FAILED);
 			e.printStackTrace();
 		}
 		
@@ -96,15 +128,16 @@ public abstract class SimulationTask extends TimerTask {
 			this.cancel();
 
 			if (state != TaskState.FAILED) {
-				state = TaskState.FINISHED;
+				setState(TaskState.FINISHED);
 			}			
 		} else {
-			state = TaskState.WAITING;
+			setState(TaskState.FINISHED);
 		}
 		
 		onFinish.ifPresent(r -> r.run());
 	}
 
 	protected abstract void runTask() throws Exception;
+	public abstract SimulationTaskType getType();
 
 }
