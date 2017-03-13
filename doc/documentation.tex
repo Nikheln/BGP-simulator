@@ -3,8 +3,6 @@
 \usepackage[english]{babel}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage{amssymb}
 \usepackage{url}
 
 \usepackage{graphicx}
@@ -44,12 +42,13 @@
 2 h & Notification message generation and exception throwing \\
 5 h & Trust system, cryptographically protected voting \\
 2 h & Client implementation and behaviour \\
-10 h & Fixing issues
-\vspace{3mm} \\
+10 h & Fixing issues \\
+15 h & Implementing the UI \\
+\vspace{1mm} \\
 15 h & Writing the report \\
 3 h & Doing the presentation \\
 \hline
-\textbf{75 h} & \textbf{Total time (approx.)}
+\textbf{90 h} & \textbf{Total time (approx.)}
 \end{tabular}
 \end{center}
 \caption{Approximate list of time taken by various parts\\of the project, semi-chronological ordering.}
@@ -65,7 +64,7 @@ The largest issues during the project stemmed from the definition of BGP \cite{R
 From design point-of-view, the visualization of the network and the simulation was the hardest part. Implementing a functioning GUI would be the best solution, but that would, naturally, take a long time. For the final implementation, I settled for a text-based configuration with a graphical representation of the network.
 
 \section{Introduction}\label{sec:intro}
-The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was attached. A high-level overview of the program structure is presented in Section\ref{sec:hlo}. The code is available in \url{https://github.com/nipehe/BGP-simulator} for the time being.
+The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was attached. A high-level overview of the program structure is presented in Section\ref{sec:hlo}.
 
 The simulation has the following basic technical features and limitations:
 \begin{itemize}
