@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import bgp.client.BGPClient;
 import bgp.client.messages.MessageHandlers.Pingable;
 import bgp.core.BGPRouter;
+import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 import bgp.ui.NetworkViewer;
@@ -35,10 +36,15 @@ public class SimulatorState {
 	
 	private static Timer simulationTaskTimer = new Timer();
 	
+	private static long simulationStartTime;
 	private static SimulationState state = SimulationState.NOT_STARTED;
 	
 	public static SimulationState getSimulationState() {
 		return state;
+	}
+	
+	public static long getSimulationStartTime() {
+		return simulationStartTime;
 	}
 	
 	private static void changeState(SimulationState newState) {
@@ -72,6 +78,8 @@ public class SimulatorState {
 		resetState();
 		simulationTaskTimer = new Timer();
 		changeState(SimulationState.STARTED);
+		simulationStartTime = System.currentTimeMillis();
+		Logger.log("Simulation started", 0, LogMessageType.GENERAL);
 		
 		long simulationStartMillis = new Date().getTime() + waitTime;
 		
@@ -102,8 +110,15 @@ public class SimulatorState {
 		}
 	}
 	
+	public static void refreshNetworkViewer() {
+		if (networkViewer != null) {
+			networkViewer.updateNetwork();
+		}
+	}
+	
 	public static void stopSimulation() {
 		simulationTaskTimer.cancel();
+		Logger.log("Simulation stopped", 0, LogMessageType.GENERAL);
 		changeState(SimulationState.NOT_STARTED);
 	}
 	

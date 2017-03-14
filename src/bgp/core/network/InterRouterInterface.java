@@ -5,8 +5,11 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Arrays;
 
+import bgp.core.BGPRouter;
 import bgp.core.messages.NotificationMessage;
 import bgp.core.network.packet.PacketRouter;
+import bgp.simulation.Logger;
+import bgp.simulation.LogMessage.LogMessageType;
 import bgp.utils.Consts;
 
 public class InterRouterInterface implements AutoCloseable, Runnable {
@@ -74,6 +77,7 @@ public class InterRouterInterface implements AutoCloseable, Runnable {
 			} catch (IOException|IndexOutOfBoundsException e) {
 				if (!shutdown) {
 					// Actual error
+					Logger.log("Error in stream", ((BGPRouter)handler).id, LogMessageType.CONNECTION);
 					conn.raiseNotification(NotificationMessage.getCeaseError());
 				} else {
 					// Caused by shutdown
@@ -84,7 +88,6 @@ public class InterRouterInterface implements AutoCloseable, Runnable {
 
 	@Override
 	public void close() throws Exception {
-		new Exception().printStackTrace();
 		this.shutdown = true;
 		Exception e = null;
 		try {

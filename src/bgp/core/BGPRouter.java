@@ -37,6 +37,8 @@ import bgp.core.network.packet.PacketRouter;
 import bgp.core.routing.RoutingEngine;
 import bgp.core.routing.SubnetNode;
 import bgp.core.trust.TrustEngine;
+import bgp.simulation.LogMessage.LogMessageType;
+import bgp.simulation.Logger;
 import bgp.simulation.SimulatorState;
 import bgp.utils.Address;
 import bgp.utils.AddressProvider;
@@ -77,6 +79,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	private long receivedPacketCount;
 	
 	public BGPRouter(int id, Subnet subnet) {
+		Logger.log("New router started, subnet: " + subnet, id, LogMessageType.GENERAL);
 		this.id = id;
 		
 		this.addressToASId = new ConcurrentHashMap<>();
@@ -131,6 +134,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					PacketEngine.decrementTTL(packet);
 				} catch (IllegalArgumentException e) {
 					// Drop packet if TTL == 0, otherwise decrement
+					Logger.log("Dropped packet to " + Address.getAddress(address)
+						+ ", TTL=0", id, LogMessageType.GENERAL);
 					return;
 				}
 				
@@ -140,6 +145,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				}
 			} else {
 				// No suitable next hop is found, drop packet
+				Logger.log("Dropped packet to " + Address.getAddress(address)
+					+ ", no suitable next hop found", id, LogMessageType.GENERAL);
 				return;
 			}
 		});
@@ -194,17 +201,22 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				BGPMessage m = BGPMessage.deserialize(body);
 				
 				if (m instanceof KeepaliveMessage && senderId != -1) {
+					Logger.log("KEEPALIVE received from " + senderId, id, LogMessageType.KEEPALIVE);
 					connections.get(senderId).raiseKeepaliveFlag();
 				} else if (m instanceof NotificationMessage && senderId != -1) {
+					Logger.log("NOTIFICATION received from " + senderId
+							+ ", type: " + ((NotificationMessage)m).getErrorType(), id, LogMessageType.CONNECTION);
 					connections.get(senderId).closeConnection();
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
+					Logger.log("OPEN received from " + om.getASId(), id, LogMessageType.CONNECTION);
 					addressToASId.put(senderAddress, om.getASId());
 					ASConnection conn = connections.get(om.getASId());
 					if (conn != null) {
 						conn.handleOpenMessage(om);
 					}
 				} else if (m instanceof UpdateMessage) {
+					Logger.log("UPDATE received from " + senderId, id, LogMessageType.ROUTING_INFO);
 					UpdateMessage um = (UpdateMessage)m;
 					Set<SubnetNode> replyNodes = routingEngine.handleUpdateMessage(um);
 
@@ -213,6 +225,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					possibleTrustRequest.ifPresent(req -> {
 						Address reviewerAddress = SimulatorState.getRouterAddress(req.getReviewerId());
 						Address ownAddress = this.getAddress();
+						
+						Logger.log("Trust vote for " + req.getTargetId() + " requested from "
+								+ req.getReviewerId(), id, LogMessageType.TRUST);
 						
 						routePacket(PacketEngine.buildPacket(ownAddress, reviewerAddress, req.serialize()));
 					});
@@ -228,6 +243,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				} else if (m instanceof TrustMessage) {
 					long recipientAddress = PacketEngine.extractRecipient(pkg);
 					TrustMessage tm = (TrustMessage) m;
+					Logger.log("Trust " + (tm.isRequest() ? "request " : "response ")
+							+ "received " + (tm.isRequest() ? (senderId >= 0 ? "from " + senderId : "") : "from " + tm.getReviewerId()),
+							id, LogMessageType.TRUST);
 					
 					Optional<byte[]> possibleResponse = trustEngine.handleTrustMessage(id, tm, senderAddress, recipientAddress);
 					
@@ -251,6 +269,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 * @param recipientAsId
 	 */
 	public void sendRoutingInformation(int recipientAsId) {
+		Logger.log("Sending routing table to " + recipientAsId, id, LogMessageType.ROUTING_INFO);
 		ASConnection conn = connections.get(recipientAsId);
 		Address ownAddress = conn.getOwnAddress();
 		Address neighbourAddress = conn.getNeighbourAddress();
@@ -279,6 +298,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 * @param NLRIToSend
 	 */
 	public void sendRoutingInformation(int recipientAsId, Set<SubnetNode> NLRIToSend) {
+		Logger.log("Sending routing information to " + recipientAsId, id, LogMessageType.ROUTING_INFO);
 		ASConnection conn = connections.get(recipientAsId);
 		Address ownAddress = conn.getOwnAddress();
 		Address neighbourAddress = conn.getNeighbourAddress();
@@ -320,6 +340,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			if (!visitedIds.contains(asId) && connection.getCurrentState() == State.ESTABLISHED) {
 				um.changeNextHop(connection.getOwnAddress().getBytes());
 				byte[] umBytes = PacketEngine.buildPacket(connection.getOwnAddress(), connection.getNeighbourAddress(), um.serialize());
+
+				Logger.log("Forwarding routing information to " + asId, id, LogMessageType.ROUTING_INFO);
 				sendViaInterface(umBytes, asId);
 			}
 		});
@@ -331,10 +353,12 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	
 	
 	public void removeConnection(ASConnection toRemove) {
+		
 		Optional<Integer> toRemoveId = getIdForConnection(toRemove);
 		if (!toRemoveId.isPresent()) {
 			return;
 		}
+		Logger.log("Connection to " + toRemoveId.get() + " being removed...", id, LogMessageType.CONNECTION);
 		
 		connections.remove(toRemoveId.get()).closeConnection();	
 		try {
@@ -356,7 +380,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			forwardUpdateMessage(um);
 		} catch (UpdateMessageException e) {
 			// UPDATE message processing failed
-			e.printStackTrace();
 		}
 	}
 	
@@ -459,6 +482,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		if (router1.connections.containsKey(router2.id) || router2.connections.containsKey(router1.id)) {
 			throw new IllegalArgumentException("Routers already connected");
 		}
+		Logger.log("Routers " + router1.id + " and " + router2.id + " connected...", 0, LogMessageType.GENERAL);
 		ASConnection conn1 = router1.getConnectionFor(router2.id);
 		InterRouterInterface adapter1 = conn1.getAdapter();
 		ASConnection conn2 = router2.getConnectionFor(router1.id);

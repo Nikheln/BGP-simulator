@@ -53,17 +53,24 @@ public class NotificationMessage extends BGPMessage {
 	}
 	
 	public enum ErrorCode {
-		MESSAGE_HEADER_ERROR(1),
-		OPEN_MESSAGE_ERROR(2),
-		UPDATE_MESSAGE_ERROR(3),
-		HOLD_TIMER_EXPIRED(4),
-		FINITE_STATE_MACHINE_ERROR(5),
-		CEASE(6);
+		MESSAGE_HEADER_ERROR(1, "Message header error"),
+		OPEN_MESSAGE_ERROR(2, "OPEN message error"),
+		UPDATE_MESSAGE_ERROR(3, "UPDATE message error"),
+		HOLD_TIMER_EXPIRED(4, "Hold timer expired"),
+		FINITE_STATE_MACHINE_ERROR(5, "Finite state machine error"),
+		CEASE(6, "Cease");
 		
 		private final byte code;
+		private final String uiText;
 		
-		private ErrorCode(int code) {
+		private ErrorCode(int code, String uiText) {
 			this.code = (byte) code;
+			this.uiText = uiText;
+		}
+		
+		@Override
+		public String toString() {
+			return uiText;
 		}
 		
 		private static ErrorCode solveType(int code) {

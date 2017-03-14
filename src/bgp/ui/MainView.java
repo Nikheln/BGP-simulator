@@ -4,7 +4,9 @@ import java.awt.Container;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -14,10 +16,13 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 import org.graphstream.ui.swingViewer.ViewPanel;
 import org.graphstream.ui.view.Viewer;
 
+import bgp.simulation.LogMessage.LogMessageType;
+import bgp.simulation.Logger;
 import bgp.simulation.SimulatorState;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.SimulationTaskType;
@@ -30,6 +35,7 @@ public class MainView extends JFrame {
 	
 	private static final int WINDOW_WIDTH = 1200;
 	private static final int WINDOW_HEIGHT = 900;
+	private static final int SIDEPANEL_WIDTH = WINDOW_WIDTH - WINDOW_HEIGHT;
 	private static final int BUTTON_CONTAINER_HEIGHT = 100;
 	
 	private final NetworkViewer networkViewer;
@@ -39,7 +45,7 @@ public class MainView extends JFrame {
 	
 	
 	private JPanel controlButtonContainer;
-	private JComboBox newTaskDropdown;
+	private JComboBox<SimulationTaskType> newTaskDropdown;
 	private JButton startButton;
 	private JButton stopButton;
 	
@@ -47,6 +53,7 @@ public class MainView extends JFrame {
 		super();
 		this.networkViewer = new NetworkViewer();
 		buildUI();
+		buildLogger();
 	}
 	
 	private void buildUI() {
@@ -67,13 +74,13 @@ public class MainView extends JFrame {
 		// Task list
 		taskContainer = new JPanel();
 		taskContainer.setLayout(new BoxLayout(taskContainer, BoxLayout.Y_AXIS));
-		taskContainer.setSize(WINDOW_WIDTH - WINDOW_HEIGHT, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
+		taskContainer.setSize(SIDEPANEL_WIDTH, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
 		taskContainer.setLocation(WINDOW_HEIGHT, 0);
 		pane.add(new JScrollPane(taskContainer));
 		
 		// Control buttons
 		controlButtonContainer = new JPanel();
-		controlButtonContainer.setSize(WINDOW_WIDTH - WINDOW_HEIGHT, BUTTON_CONTAINER_HEIGHT);
+		controlButtonContainer.setSize(SIDEPANEL_WIDTH, BUTTON_CONTAINER_HEIGHT);
 		controlButtonContainer.setLocation(WINDOW_HEIGHT, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
 		
 		newTaskDropdown = new JComboBox<>(SimulationTaskType.values());
@@ -112,13 +119,37 @@ public class MainView extends JFrame {
 		controlButtonContainer.add(stopButton);
 
 		pane.add(controlButtonContainer);
+	}
+	
+	private Map<LogMessageType, Boolean> logFilters = new EnumMap<>(LogMessageType.class);
+	
+	private void buildLogger() {
+		for (LogMessageType lmt : LogMessageType.values()) {
+			logFilters.put(lmt, true);
+		}
+		JFrame logWindow = new JFrame("Log");
+		logWindow.setSize(600, 500);
+		logWindow.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		
+		JTextArea logArea = new JTextArea();
+		logArea.setEditable(false);
+		logWindow.add(new JScrollPane(logArea));
+		
+		Logger.setLogHandler(m -> {
+			if (!logFilters.get(m.type)) {
+				return;
+			}
+			logArea.append(m.toString());
+			logArea.setCaretPosition(logArea.getDocument().getLength());
+			logWindow.validate();
+		});
+		
+		logWindow.setVisible(true);
 	}
 	
 	private final List<SimulationTask> tasks = new ArrayList<>();
 	
 	private void processNewTask(SimulationTask task) {
-		System.out.println(SimulatorState.getSimulationState());
 		switch (SimulatorState.getSimulationState()) {
 		case ERROR:
 			JOptionPane.showMessageDialog(this, "Error in simulation, task not executed");
@@ -177,6 +208,8 @@ public class MainView extends JFrame {
 					cancelButton.setEnabled(false);
 				}
 			});
+			
+			this.setSize(SIDEPANEL_WIDTH, 200);
 		}
 		
 		public void updateStatus(TaskState newState) {

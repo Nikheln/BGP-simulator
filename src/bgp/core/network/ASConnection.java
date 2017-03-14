@@ -10,6 +10,8 @@ import bgp.core.messages.OpenMessage;
 import bgp.core.network.fsm.State;
 import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
+import bgp.simulation.LogMessage.LogMessageType;
+import bgp.simulation.Logger;
 import bgp.simulation.SimulatorState;
 import bgp.utils.Address;
 import bgp.utils.Consts;
@@ -176,6 +178,9 @@ public class ASConnection {
 	 * @param m
 	 */
 	public void raiseNotification(NotificationMessage m) {
+		// Log the error
+		Logger.log("Notification raised to " + neighbourId + ", type: "
+				+ m.getErrorType(), handler.id, LogMessageType.CONNECTION);
 		// Penalize neighbour in some error cases
 		TrustEngine t = handler.getTrustEngine();
 		switch (m.getErrorType()) {
@@ -197,7 +202,8 @@ public class ASConnection {
 		} catch (Exception e) {
 			
 		}
-		closeConnection();
+		handler.removeConnection(this);
+		SimulatorState.refreshNetworkViewer();
 	}
 	
 	/**
@@ -206,7 +212,6 @@ public class ASConnection {
 	 * tell the router to stop using this adapter
 	 */
 	public void closeConnection() {
-		handler.removeConnection(this);
 		try {
 			adapter.close();
 			SimulatorState.releaseAddress(ownAddress);

@@ -18,6 +18,8 @@ import bgp.core.messages.pathattributes.NextHop;
 import bgp.core.messages.pathattributes.Origin;
 import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.trust.TrustProvider;
+import bgp.simulation.Logger;
+import bgp.simulation.LogMessage.LogMessageType;
 import bgp.utils.Consts;
 import bgp.utils.Subnet;
 
@@ -63,6 +65,9 @@ public class RoutingEngine {
 				|| (localPref > getLocalPref(n.getFirstHop()))
 				|| (localPref == getLocalPref(n.getFirstHop()) && length < n.getLength())) {
 			n.setPath(firstHop, length);
+
+			Logger.log("Learned new route to " + subnet + " via " + firstHop + ", length: "
+					+ length, asId, LogMessageType.ROUTING_INFO);
 		}
 	}
 	
@@ -161,6 +166,8 @@ public class RoutingEngine {
 				if (firstHop == n.getFirstHop() || firstHop == -1) {
 					n.delete();
 					deletedPaths.add(n.subnet);
+
+					Logger.log("Revoked route to " + s + " via " + firstHop, asId, LogMessageType.ROUTING_INFO);
 				} else {
 					// Revoking peer should be informed of alternative route
 					replyPaths.add(n);
@@ -200,6 +207,8 @@ public class RoutingEngine {
 			
 			if (pathChanged) {
 				n.setPath(firstHop, length);
+				Logger.log("Learned new route to " + s + " via " + firstHop + ", length: "
+						+ length, asId, LogMessageType.ROUTING_INFO);
 				utilizedPaths.add(n.subnet);
 			}
 		}
