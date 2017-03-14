@@ -191,8 +191,6 @@ public class ASConnection {
 		default:
 			break;
 		}
-		System.out.println(ownAddress);
-		new Exception().printStackTrace();
 		try {
 			byte[] message = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
 			sendPacket(message);
