@@ -7,6 +7,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,9 +25,11 @@ import javax.swing.JTextArea;
 import org.graphstream.ui.swingViewer.ViewPanel;
 import org.graphstream.ui.view.Viewer;
 
-import bgp.simulation.LogMessage.LogMessageType;
 import bgp.core.BGPRouter;
+import bgp.core.network.ASConnection;
+import bgp.core.network.fsm.State;
 import bgp.core.routing.SubnetNode;
+import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.Logger;
 import bgp.simulation.SimulatorState;
 import bgp.simulation.tasks.SimulationTask;
@@ -134,6 +137,21 @@ public class MainView extends JFrame {
 			stopButton.setEnabled(false);
 		});
 		controlButtonContainer.add(stopButton);
+		
+		JButton t = new JButton("Magic");
+		t.addActionListener(e -> {
+			Map<State, Integer> counters = new HashMap<>();
+			for (int rid : SimulatorState.getReservedIds()) {
+				for (ASConnection conn : SimulatorState.getRouter(rid).getAllConnections()) {
+					counters.put(conn.getCurrentState(), counters.getOrDefault(conn.getCurrentState(),0)+1);
+				}
+			}
+			
+			for (State s : State.values()) {
+				System.out.println(s + " " + counters.getOrDefault(s, 0));
+			}
+		});
+		controlButtonContainer.add(t);
 
 		pane.add(controlButtonContainer);
 	}

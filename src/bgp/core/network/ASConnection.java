@@ -51,7 +51,6 @@ public class ASConnection {
 		
 		SimulatorState.reserveAddress(ownAddress);
 		
-		
 		this.adapter = new InterRouterInterface(handler, this);
 		this.handler = handler;
 		this.fsm = new StateMachine();
@@ -78,10 +77,11 @@ public class ASConnection {
 					Consts.DEFAULT_HOLD_DOWN_TIME,
 					ownAddress.getAddress());
 
+			sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize()));
+
 			if (fsm.getCurrentState().equals(State.CONNECT)) {
 				fsm.changeState(State.OPEN_SENT);
 			}
-			sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize()));
 			
 		} else {
 			retrying.cancel(true);
@@ -125,14 +125,14 @@ public class ASConnection {
 		}
 	}
 	
-	public Address getNeighbourAddress() { 
+	public Address getNeighbourAddress() {
 		return neighbourAddress;
 	}
-	private static int establisheds = 0;
+	
 	public void raiseKeepaliveFlag() {
 		if (fsm.getCurrentState().equals(State.OPEN_CONFIRM)) {
 			fsm.changeState(State.ESTABLISHED);
-			System.out.println(establisheds++);
+			
 			retrying.cancel(true);
 			handler.sendRoutingInformation(neighbourId);
 		}

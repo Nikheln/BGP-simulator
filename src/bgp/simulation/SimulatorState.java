@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -206,8 +207,8 @@ public class SimulatorState {
 		return routers.get(bgpId);
 	}
 	
-	public static Address getRouterAddress(int bgpId) {
-		return getRouter(bgpId).getAddress();
+	public static Optional<Address> getRouterAddress(int bgpId) {
+		return Optional.ofNullable(getRouter(bgpId)).map(BGPRouter::getAddress);
 	}
 	
 	public static void registerClient(BGPClient client) {

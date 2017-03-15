@@ -101,16 +101,17 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		packetProcessingThread.execute(() -> {
 			if (!PacketEngine.validatePacketHeader(packet)) {
 				// Drop packet if checksum doesn't match
+				Logger.log("Dropped packet (invalid header checksum)", id, LogMessageType.GENERAL);
 				return;
 			}
 			
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
 			int nextHop = routingEngine.decidePath(address);
+			
 			if (nextHop == this.id) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
-				
 				if (rec != null) {
 					if (rec == this) {
 						this.receivePacket(packet);
@@ -166,9 +167,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	}
 
 	@Override
-	public Address reserveAddress(PacketReceiver receiver) throws IllegalArgumentException {
+	public synchronized Address reserveAddress(PacketReceiver receiver) throws IllegalArgumentException {
 		while (packetReceivers.containsKey(addressingPointer)) {
-			addressingPointer = subnet.getAddress() + ((addressingPointer + 1) & ~subnet.getBitmask());
+			addressingPointer = (subnet.getAddress() & subnet.getBitmask()) + ((addressingPointer + 1) & ~subnet.getBitmask());
 		}
 		packetReceivers.put(addressingPointer, receiver);
 		return Address.getAddress(addressingPointer);
@@ -198,10 +199,12 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				if (m instanceof KeepaliveMessage && senderId != -1) {
 					Logger.log("KEEPALIVE received from " + senderId, id, LogMessageType.KEEPALIVE);
 					connections.get(senderId).raiseKeepaliveFlag();
+					
 				} else if (m instanceof NotificationMessage && senderId != -1) {
 					Logger.log("NOTIFICATION received from " + senderId
 							+ ", type: " + ((NotificationMessage)m).getErrorType(), id, LogMessageType.CONNECTION);
-					removeConnection(getConnectionFor(senderId));
+					getConnectionFor(senderId, false).ifPresent(this::removeConnection);
+					
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
 					Logger.log("OPEN received from " + om.getASId(), id, LogMessageType.CONNECTION);
@@ -210,6 +213,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					if (conn != null) {
 						conn.handleOpenMessage(om);
 					}
+					
 				} else if (m instanceof UpdateMessage) {
 					Logger.log("UPDATE received from " + senderId, id, LogMessageType.ROUTING_INFO);
 					UpdateMessage um = (UpdateMessage)m;
@@ -218,13 +222,15 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					// If UPDATE message AS_PATH has more than one peer, ask for trust vote
 					Optional<TrustMessage> possibleTrustRequest = trustEngine.decideTrustVote(um);
 					possibleTrustRequest.ifPresent(req -> {
-						Address reviewerAddress = SimulatorState.getRouterAddress(req.getReviewerId());
-						Address ownAddress = this.getAddress();
-						
-						Logger.log("Trust vote for " + req.getTargetId() + " requested from "
-								+ req.getReviewerId(), id, LogMessageType.TRUST);
-						
-						routePacket(PacketEngine.buildPacket(ownAddress, reviewerAddress, req.serialize()));
+						Optional<Address> reviewerAddress = SimulatorState.getRouterAddress(req.getReviewerId());
+						if (reviewerAddress.isPresent()) {
+							Address ownAddress = this.getAddress();
+							
+							Logger.log("Trust vote for " + req.getTargetId() + " requested from "
+									+ req.getReviewerId(), id, LogMessageType.TRUST);
+							
+							routePacket(PacketEngine.buildPacket(ownAddress, reviewerAddress.get(), req.serialize()));	
+						}
 					});
 					
 					// Forward the UPDATE message to selected peers
@@ -388,11 +394,15 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			.findAny();
 	}
 	
-	public ASConnection getConnectionFor(int otherId) {
-		ASConnection conn = connections.computeIfAbsent(otherId, id -> new ASConnection(reserveAddress(this), this));
-		// Register this receiver to interface's address
-		packetReceivers.computeIfAbsent(conn.getOwnAddress().getAddress(), address -> this);
-		return conn;
+	public Optional<ASConnection> getConnectionFor(int otherId, boolean createNew) {
+		ASConnection conn = null;
+		if (createNew) {
+			conn = connections.computeIfAbsent(otherId, id -> new ASConnection(reserveAddress(this), this));
+		} else {
+			conn = connections.get(otherId);
+		}
+		
+		return Optional.ofNullable(conn);
 	}
 	
 	public boolean hasConnectionTo(int otherId) {
@@ -473,17 +483,17 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		if (router1.connections.containsKey(router2.id) || router2.connections.containsKey(router1.id)) {
 			throw new IllegalArgumentException("Routers already connected");
 		}
-		ASConnection conn1 = router1.getConnectionFor(router2.id);
-		InterRouterInterface adapter1 = conn1.getAdapter();
-		ASConnection conn2 = router2.getConnectionFor(router1.id);
-		InterRouterInterface adapter2 = conn2.getAdapter();
+		Optional<ASConnection> conn1 = router1.getConnectionFor(router2.id, true);
+		InterRouterInterface adapter1 = conn1.get().getAdapter();
+		Optional<ASConnection> conn2 = router2.getConnectionFor(router1.id, true);
+		InterRouterInterface adapter2 = conn2.get().getAdapter();
 		
 		// Connect the "cables"
 		adapter1.connectNeighbourOutputStream(adapter2);
 		adapter2.connectNeighbourOutputStream(adapter1);
 		
-		conn1.start(conn2.getOwnAddress());
-		conn2.start(conn1.getOwnAddress());
+		conn1.ifPresent(c -> c.start(conn2.get().getOwnAddress()));
+		conn2.ifPresent(c -> c.start(conn1.get().getOwnAddress()));
 		Logger.log("Routers " + router1.id + " and " + router2.id + " connected...", 0, LogMessageType.GENERAL);
 	}
 

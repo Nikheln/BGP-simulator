@@ -165,14 +165,14 @@ public class PacketEngine {
 		return (((packet[12] << 24)&0xFF000000)
 				+ ((packet[13] << 16)&0x00FF0000)
 				+ ((packet[14] << 8)&0x0000FF00)
-				+ ((packet[15])&0x000000FF));
+				+ ((packet[15])&0x000000FF))&0xFFFFFFFFL;
 	}
 	
 	public static long extractRecipient(byte[] packet) {
 		return (((packet[16] << 24)&0xFF000000)
 				+ ((packet[17] << 16)&0x00FF0000)
 				+ ((packet[18] << 8)&0x0000FF00)
-				+ ((packet[19])&0x000000FF));
+				+ ((packet[19])&0x000000FF))&0xFFFFFFFFL;
 	}
 	
 	public static int extractTTL(byte[] packet) {

@@ -21,8 +21,8 @@ public class DisconnectRoutersTask extends SimulationTask implements TopologyCha
 		BGPRouter breaking = SimulatorState.getRouter(breakingRouter);
 		
 		if (breaking.hasConnectionTo(routerToDisconnect)) {
-			breaking.getConnectionFor(routerToDisconnect)
-				.raiseNotification(NotificationMessage.getCeaseError());
+			breaking.getConnectionFor(routerToDisconnect, false)
+				.ifPresent(c -> c.raiseNotification(NotificationMessage.getCeaseError()));
 		} else {
 			throw new IllegalArgumentException("Specified router not connected.");
 		}

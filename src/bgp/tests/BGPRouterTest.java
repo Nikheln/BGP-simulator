@@ -60,8 +60,8 @@ public class BGPRouterTest {
 			fail(e.getMessage());
 		}
 		
-		assertEquals(State.ESTABLISHED, r1.getConnectionFor(r2.id).getCurrentState());
-		assertEquals(State.ESTABLISHED, r2.getConnectionFor(r1.id).getCurrentState());
+		assertEquals(State.ESTABLISHED, r1.getConnectionFor(r2.id, false).get().getCurrentState());
+		assertEquals(State.ESTABLISHED, r2.getConnectionFor(r1.id, false).get().getCurrentState());
 	}
 	
 	@Test
@@ -81,7 +81,6 @@ public class BGPRouterTest {
 		}
 	}
 	
-	@SuppressWarnings("unused")
 	@Test
 	public void testUpdateMessageForwarding() {
 		int amountOfRouters = 40;
@@ -173,8 +172,8 @@ public class BGPRouterTest {
 		
 		// Break the connection R3-R4
 		r3.receivePacket(PacketEngine.buildPacket(
-				r3.getConnectionFor(4).getNeighbourAddress(),
-				r4.getConnectionFor(3).getNeighbourAddress(),
+				r3.getConnectionFor(4, false).get().getNeighbourAddress(),
+				r4.getConnectionFor(3, false).get().getNeighbourAddress(),
 				new byte[0]));
 		
 		try {
