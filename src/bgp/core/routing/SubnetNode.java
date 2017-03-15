@@ -44,6 +44,10 @@ public class SubnetNode {
 		this.length = length;
 	}
 	
+	public Subnet getSubnet() {
+		return subnet;
+	}
+	
 	public int getFirstHop() {
 		return firstHop;
 	}

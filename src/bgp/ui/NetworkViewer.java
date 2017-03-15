@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
@@ -17,6 +20,9 @@ public class NetworkViewer extends SingleGraph {
 	private final Map<Integer, Node> nodes;
 	private final Map<Pair<Integer, Integer>, Edge> edges;
 	
+	private boolean dirty = false;
+	private final ScheduledExecutorService cleanup = Executors.newSingleThreadScheduledExecutor();
+	
 	public NetworkViewer() {
 		super("Router network");
 		
@@ -25,9 +31,20 @@ public class NetworkViewer extends SingleGraph {
 		
 		setAttribute("layout.quality", 4);
 		setAttribute("ui.antialias", 1);
+		
+		cleanup.scheduleAtFixedRate(() -> {
+			if (dirty) {
+				updateNetwork();
+			}
+			dirty = false;
+		}, 1, 1, TimeUnit.SECONDS);
+	}
+	
+	public void markAsDirty() {
+		dirty = true;
 	}
 
-	public void updateNetwork() {
+	private void updateNetwork() {
 		List<Integer> ids = SimulatorState.getReservedIds();
 		
 		// Add routers not in graph
@@ -71,7 +88,11 @@ public class NetworkViewer extends SingleGraph {
 		for (Iterator<Pair<Integer, Integer>> iter = edges.keySet().iterator(); iter.hasNext(); ) {
 			Pair<Integer, Integer> nextKey = iter.next();
 			if (!SimulatorState.getRouter(nextKey.getLeft()).hasConnectionTo(nextKey.getRight())) {
-				removeEdge(edges.get(nextKey));
+				try {
+					removeEdge(edges.get(nextKey));
+				} catch (Exception e) {
+					
+				}
 				iter.remove();
 			}
 		}

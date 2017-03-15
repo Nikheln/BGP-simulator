@@ -118,10 +118,9 @@ public abstract class SimulationTask extends TimerTask {
 		setState(TaskState.RUNNING);
 		
 		try {
-			runTask();	
+			runTask();
 		} catch (Exception e) {
 			setState(TaskState.FAILED);
-			e.printStackTrace();
 		}
 		
 		if (++runCounter >= repetitions) {

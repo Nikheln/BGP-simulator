@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,7 +57,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 * Map that pairs AS id's to their corresponding connections
 	 */
 	private final Map<Integer, ASConnection> connections;
-	private final Timer connectionKeepaliveTimer;
 	
 	private final ExecutorService packetProcessingThread;
 	
@@ -84,7 +81,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		
 		this.addressToASId = new ConcurrentHashMap<>();
 		this.connections = new ConcurrentHashMap<>();
-		this.connectionKeepaliveTimer = new Timer(true);
 		
 		this.packetReceivers = new ConcurrentHashMap<>();
 		this.subnet = subnet;
@@ -117,7 +113,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				
 				if (rec != null) {
 					if (rec == this) {
-						receivingConnection.raiseKeepaliveFlag();
 						this.receivePacket(packet);
 					} else {
 						// Run in separate simulator threads
@@ -206,7 +201,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 				} else if (m instanceof NotificationMessage && senderId != -1) {
 					Logger.log("NOTIFICATION received from " + senderId
 							+ ", type: " + ((NotificationMessage)m).getErrorType(), id, LogMessageType.CONNECTION);
-					connections.get(senderId).closeConnection();
+					removeConnection(getConnectionFor(senderId));
 				} else if (m instanceof OpenMessage) {
 					OpenMessage om = (OpenMessage) m;
 					Logger.log("OPEN received from " + om.getASId(), id, LogMessageType.CONNECTION);
@@ -352,7 +347,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	}
 	
 	
-	public void removeConnection(ASConnection toRemove) {
+	public synchronized void removeConnection(ASConnection toRemove) {
 		
 		Optional<Integer> toRemoveId = getIdForConnection(toRemove);
 		if (!toRemoveId.isPresent()) {
@@ -360,7 +355,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		}
 		Logger.log("Connection to " + toRemoveId.get() + " being removed...", id, LogMessageType.CONNECTION);
 		
-		connections.remove(toRemoveId.get()).closeConnection();	
+		if (connections.containsKey(toRemoveId.get())) {
+			connections.remove(toRemoveId.get()).closeConnection();	
+		}
 		try {
 			// Build an UPDATE message to inform neighbours
 			UpdateMessageBuilder b = new UpdateMessageBuilder();
@@ -440,14 +437,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		return routingEngine;
 	}
 	
-	public void registerKeepaliveTask(TimerTask task, long delay, long period) {
-		connectionKeepaliveTimer.scheduleAtFixedRate(task, delay, period);
-	}
-	
 	@Override
 	public void shutdown() {
-		// Stop sending KEEPALIVE
-		connectionKeepaliveTimer.cancel();
 		
 		// Inform clients
 		getClients().forEach(pr -> pr.shutdown());
@@ -482,7 +473,6 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		if (router1.connections.containsKey(router2.id) || router2.connections.containsKey(router1.id)) {
 			throw new IllegalArgumentException("Routers already connected");
 		}
-		Logger.log("Routers " + router1.id + " and " + router2.id + " connected...", 0, LogMessageType.GENERAL);
 		ASConnection conn1 = router1.getConnectionFor(router2.id);
 		InterRouterInterface adapter1 = conn1.getAdapter();
 		ASConnection conn2 = router2.getConnectionFor(router1.id);
@@ -494,6 +484,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		
 		conn1.start(conn2.getOwnAddress());
 		conn2.start(conn1.getOwnAddress());
+		Logger.log("Routers " + router1.id + " and " + router2.id + " connected...", 0, LogMessageType.GENERAL);
 	}
 
 }

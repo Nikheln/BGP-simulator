@@ -1,12 +1,16 @@
 package bgp.ui;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Container;
+import java.awt.FlowLayout;
 import java.awt.event.WindowEvent;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -50,15 +54,15 @@ public class TaskCreationPopup extends JFrame {
 	
 	private void buildUI() {
 		setTitle("Create task: " + type.uiText);
-		setSize(300, 400);
+		setSize(400, 400);
 		
 		Container c = getContentPane();
 		c.setLayout(new BoxLayout(c, BoxLayout.Y_AXIS));
 		
 		editor = getEditor();
-		editor.setSize(300, 300);
 		c.add(editor);
 		
+		c.add(Box.createVerticalGlue());
 		
 		JButton save = new JButton("Create task");
 		save.addActionListener(e -> {
@@ -70,11 +74,12 @@ public class TaskCreationPopup extends JFrame {
 		cancel.addActionListener(e -> close());
 		
 		JPanel buttonContainer = new JPanel();
-		buttonContainer.setSize(300, 100);
 		buttonContainer.add(save);
 		buttonContainer.add(cancel);
 		
 		c.add(buttonContainer);
+		
+		pack();
 	}
 	
 	private TaskEditor getEditor() {
@@ -99,6 +104,9 @@ public class TaskCreationPopup extends JFrame {
 			return new StartGeneratingTrafficTaskEditor();
 		case STOP_GENERATING_TRAFFIC:
 			return new StopGeneratingTrafficTaskEditor();
+		case NONE:
+		default:
+			break;
 		}
 		return null;
 	}
@@ -129,7 +137,7 @@ public class TaskCreationPopup extends JFrame {
 	}
 	
 	private class AddClientsEditor extends TaskEditor {
-		private NumberFieldWithTitle routerIdField = new NumberFieldWithTitle("ID of the connecting router");
+		private FieldWithTitle routerIdField = new FieldWithTitle("<html>IDs of the connecting routers<br>(comma separated, empty to populate all)</html>");
 		private NumberFieldWithTitle amountOfClientsField = new NumberFieldWithTitle("Amount of clients to connect");
 		
 		public AddClientsEditor() {
@@ -141,7 +149,19 @@ public class TaskCreationPopup extends JFrame {
 
 		@Override
 		protected SimulationTask getTask() {
-			return new AddClientsTask(routerIdField.getValue(), amountOfClientsField.getValue(), delayField.getValue());
+			List<Integer> routerIds = new ArrayList<>();
+			for (String id : routerIdField.getValue().split(",")) {
+				try {
+					routerIds.add(Integer.parseInt(id.trim()));
+				} catch (Exception e) {
+					
+				}
+			}
+			if (routerIds.isEmpty()) {
+				return new AddClientsTask(amountOfClientsField.getValue(), delayField.getValue());
+			} else {
+				return new AddClientsTask(routerIds, amountOfClientsField.getValue(), delayField.getValue());
+			}
 		}
 		
 	}

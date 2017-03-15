@@ -49,6 +49,9 @@ public class GenerateNetworkTask extends SimulationTask implements TopologyChang
 			}
 			
 			BGPRouter.connectRouters(r1, r2);
+			
+			// Sleep to avoid congesting the routers
+			Thread.sleep(10);
 		}
 	}
 

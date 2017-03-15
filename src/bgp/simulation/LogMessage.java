@@ -3,11 +3,22 @@ package bgp.simulation;
 public class LogMessage {
 	
 	public enum LogMessageType {
-		GENERAL,
-		KEEPALIVE,
-		TRUST,
-		ROUTING_INFO,
-		CONNECTION;
+		GENERAL("General"),
+		KEEPALIVE("KEEPALIVE"),
+		TRUST("TRUST"),
+		ROUTING_INFO("Routing info"),
+		CONNECTION("Connection");
+		
+		private final String uiText;
+		
+		private LogMessageType(String uiText) {
+			this.uiText = uiText;
+		}
+		
+		@Override
+		public String toString() {
+			return uiText;
+		}
 	}
 	
 	final long timestamp;

@@ -20,6 +20,7 @@ import bgp.core.BGPRouter;
 import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
+import bgp.ui.MainView;
 import bgp.ui.NetworkViewer;
 import bgp.utils.Address;
 
@@ -68,12 +69,14 @@ public class SimulatorState {
 	
 	
 	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks) {
-		startSimulation(waitTime, tasks, null);
+		startSimulation(waitTime, tasks, null, null);
 	}
 	
+	private static MainView mainViewer;
 	private static NetworkViewer networkViewer;
 	
-	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks, NetworkViewer viewer) {
+	public static void startSimulation(long waitTime, Collection<SimulationTask> tasks, MainView mv, NetworkViewer viewer) {
+		mainViewer = mv;
 		networkViewer = viewer;
 		resetState();
 		simulationTaskTimer = new Timer();
@@ -86,7 +89,7 @@ public class SimulatorState {
 		for (SimulationTask t : tasks) {
 			t.onFinish(() -> {
 				if (viewer != null && t instanceof TopologyChanging) {
-					viewer.updateNetwork();
+					refreshNetworkViewer();
 				}
 			});
 			
@@ -106,13 +109,15 @@ public class SimulatorState {
 		task.run();
 		
 		if (updateView) {
-			networkViewer.updateNetwork();
+			refreshNetworkViewer();
 		}
 	}
 	
 	public static void refreshNetworkViewer() {
+		
 		if (networkViewer != null) {
-			networkViewer.updateNetwork();
+			mainViewer.refreshRouterList();
+			networkViewer.markAsDirty();
 		}
 	}
 	

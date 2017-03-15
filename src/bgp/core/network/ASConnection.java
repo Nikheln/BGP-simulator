@@ -1,7 +1,10 @@
 package bgp.core.network;
 
 import java.io.IOException;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import bgp.core.BGPRouter;
 import bgp.core.messages.KeepaliveMessage;
@@ -19,6 +22,11 @@ import bgp.utils.PacketEngine;
 
 public class ASConnection {
 	
+	private static final ScheduledExecutorService connectionKeepaliveTimer = Executors.newScheduledThreadPool(4);
+	private static ScheduledFuture<?> registerKeepaliveTask(Runnable r, long delay, long interval) {
+		return connectionKeepaliveTimer.scheduleAtFixedRate(r, delay, interval, TimeUnit.MILLISECONDS);
+	}
+	
 	private final BGPRouter handler;
 	private final InterRouterInterface adapter;
 	private final StateMachine fsm;
@@ -27,7 +35,7 @@ public class ASConnection {
 	
 	private int retryCounter;
 	
-	private TimerTask keepaliveChecking, keepaliveSending, retrying;
+	private ScheduledFuture<?> keepaliveChecking, keepaliveSending, retrying;
 	
 	private int neighbourId;
 	private Address ownAddress;
@@ -52,38 +60,33 @@ public class ASConnection {
 	}
 	
 	/**
-	 * Start connecting. Initialize the state machine and call {@link #startSendingOpenMessages(Address)}
+	 * Start connecting. Initialize the state machine and start sending OPEN messages
 	 * @param neighbourAddress
 	 */
 	public void start(Address neighbourAddress) {
 		this.fsm.changeState(State.CONNECT);
 		this.retryCounter = 0;
+		this.neighbourAddress = neighbourAddress;
+		
+		this.retrying = registerKeepaliveTask(this::sendOpenMessage, 100, 10000);
+	}
+	
+	private void sendOpenMessage() {
+		if (retryCounter < 10) {
+			retryCounter++;
+			OpenMessage m = new OpenMessage(handler.id,
+					Consts.DEFAULT_HOLD_DOWN_TIME,
+					ownAddress.getAddress());
 
-		this.retrying = new TimerTask() {
-			
-			@Override
-			public void run() {
-				if (retryCounter < 10
-						&& (fsm.getCurrentState() == State.OPEN_SENT
-						 || fsm.getCurrentState() == State.CONNECT)) {
-					retryCounter++;
-					OpenMessage m = new OpenMessage(handler.id,
-							Consts.DEFAULT_HOLD_DOWN_TIME,
-							ownAddress.getAddress());
-					byte[] message = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
-					
-					sendPacket(message);
-				} else if (retryCounter >= 10) {
-					retrying.cancel();
-					closeConnection();
-				}
+			if (fsm.getCurrentState().equals(State.CONNECT)) {
+				fsm.changeState(State.OPEN_SENT);
 			}
-		};
-		
-		fsm.changeState(State.OPEN_SENT);
-		
-		handler.registerKeepaliveTask(retrying, 0, 10000);
-		
+			sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize()));
+			
+		} else {
+			retrying.cancel(true);
+			closeConnection();
+		}
 	}
 	
 	/**
@@ -92,49 +95,31 @@ public class ASConnection {
 	 * @param m
 	 */
 	public void handleOpenMessage(OpenMessage m) {
-		if (fsm.getCurrentState().equals(State.OPEN_SENT)
-				|| fsm.getCurrentState().equals(State.CONNECT)) {
+		if (fsm.getCurrentState().equals(State.OPEN_SENT)) {
 			neighbourId = m.getASId();
 			neighbourAddress = Address.getAddress(m.getBgpId());
-			this.keepaliveChecking = new TimerTask() {
-
-				@Override
-				public void run() {
-					if (hasReceivedKeepalive) {
-						if (fsm.getCurrentState().equals(State.OPEN_CONFIRM)) {
-							fsm.changeState(State.ESTABLISHED);
-							retrying.cancel();
-							handler.sendRoutingInformation(neighbourId);
-						}
-						hasReceivedKeepalive = false;
-					} else {
-						raiseNotification(NotificationMessage.getHoldTimeExpiredError());
-					}
-				}
-				
-			};
 			
-			this.keepaliveSending = new TimerTask() {
-
-				@Override
-				public void run() {
-					KeepaliveMessage m = new KeepaliveMessage();
-					byte[] packet = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
-					try {
-						adapter.sendData(packet);
-					} catch (IOException e) {
-						e.printStackTrace();
-						// Error sending KEEPALIVE
-						raiseNotification(NotificationMessage.getCeaseError());
-					}
+			// Start checking that KEEPALIVE messages have come
+			this.keepaliveChecking = registerKeepaliveTask(() -> {
+				if (hasReceivedKeepalive) {
+					hasReceivedKeepalive = false;
+				} else {
+					raiseNotification(NotificationMessage.getHoldTimeExpiredError());
 				}
-				
-			};
+			}, m.getHoldTime()*1000, m.getHoldTime()*1000);
 
 			// Start sending KEEPALIVE messages
-			handler.registerKeepaliveTask(keepaliveSending, 20, Consts.DEFAULT_KEEPALIVE_INTERVAL);
-			// Start checking that KEEPALIVE messages have come
-			handler.registerKeepaliveTask(keepaliveChecking, 500, m.getHoldTime()*1000);
+			this.keepaliveSending = registerKeepaliveTask(() -> {
+				try {
+					KeepaliveMessage km = new KeepaliveMessage();
+					byte[] packet = PacketEngine.buildPacket(ownAddress, neighbourAddress, km.serialize());
+					adapter.sendData(packet);
+				} catch (IOException e) {
+					// Error sending KEEPALIVE
+					raiseNotification(NotificationMessage.getCeaseError());
+				}
+			}, 50, Consts.DEFAULT_KEEPALIVE_INTERVAL);
+			
 			
 			fsm.changeState(State.OPEN_CONFIRM);
 		}
@@ -143,8 +128,14 @@ public class ASConnection {
 	public Address getNeighbourAddress() { 
 		return neighbourAddress;
 	}
-	
+	private static int establisheds = 0;
 	public void raiseKeepaliveFlag() {
+		if (fsm.getCurrentState().equals(State.OPEN_CONFIRM)) {
+			fsm.changeState(State.ESTABLISHED);
+			System.out.println(establisheds++);
+			retrying.cancel(true);
+			handler.sendRoutingInformation(neighbourId);
+		}
 		this.hasReceivedKeepalive = true;
 	}
 	
@@ -220,11 +211,11 @@ public class ASConnection {
 		}
 		
 		if (this.keepaliveChecking != null) {
-			this.keepaliveChecking.cancel();
+			this.keepaliveChecking.cancel(true);
 		}
 		
 		if (this.keepaliveSending != null) {
-			this.keepaliveSending.cancel();
+			this.keepaliveSending.cancel(true);
 		}
 		
 		this.fsm.changeState(State.IDLE);

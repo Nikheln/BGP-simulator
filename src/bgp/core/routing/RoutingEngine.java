@@ -122,6 +122,14 @@ public class RoutingEngine {
 		
 		return results;
 	}
+	
+	public List<SubnetNode> getRoutingTable() {
+		List<SubnetNode> l = new ArrayList<>();
+		for (Iterator<SubnetNode> iter = subnetRootNode.getSubnetNodeIterator(); iter.hasNext(); ) {
+			l.add(iter.next());
+		}
+		return l;
+	}
 
 	/**
 	 * Process an UPDATE message and update the routing information accordingly.
@@ -184,8 +192,7 @@ public class RoutingEngine {
 			int currentPathLocalPref = getLocalPref(n.getFirstHop());
 			
 			// With a partial match, add a new node as a child
-			boolean newNode = !n.subnet.equals(s);
-			if (newNode) {
+			if (!n.subnet.equals(s)) {
 				// New path
 				n = new SubnetNode(n, s);
 				pathChanged = true;
@@ -201,8 +208,8 @@ public class RoutingEngine {
 				
 				double newTrust = (trustProvider.getTrustFor(firstHop) + 128)/255.0;
 				double newCost = length*newTrust;
-				
 				pathChanged = newCost < oldCost;
+				//System.out.println(this.asId + " TO " + n.subnet + " old: " + n.getFirstHop() + " vs. " + firstHop + ": " + oldCost + " " + newCost + "->" + pathChanged);
 			}
 			
 			if (pathChanged) {
@@ -250,11 +257,10 @@ public class RoutingEngine {
 		AsPath ap = extractAsPath(base);
 		nodes.entrySet()
 			.stream()
-			.sorted((e1, e2) -> e2.getKey()-e1.getKey())
+			.sorted((e1, e2) -> e1.getKey() - e2.getKey())
 			.forEach(entry -> {
 				// Padding to match real path length
 				// Necessary to avoid the other end thinking of this as an optimal route to everything
-				
 				while (ap.getIdSequence().size() < entry.getKey()) {
 					ap.appendId(asId);
 				}

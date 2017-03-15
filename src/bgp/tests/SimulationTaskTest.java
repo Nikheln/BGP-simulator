@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
@@ -28,8 +29,8 @@ public class SimulationTaskTest {
 		List<SimulationTask> tasks = new ArrayList<>();
 		tasks.add(new GenerateNetworkTask(LinkingOrder.CLUSTERED, 30));
 		tasks.add(new ConnectRoutersTask(3, 25, 1000));
-		tasks.add(new AddClientsTask(5, 10, 2000));
-		tasks.add(new AddClientsTask(14, 10, 2000));
+		tasks.add(new AddClientsTask(Arrays.asList(5), 10, 2000));
+		tasks.add(new AddClientsTask(Arrays.asList(14), 10, 2000));
 		StartGeneratingTrafficTask t1 = new StartGeneratingTrafficTask(1, 5, 1, 4000);
 		tasks.add(t1);
 		StartGeneratingTrafficTask t2 = new StartGeneratingTrafficTask(2, 14, 1, 4000);
@@ -42,7 +43,7 @@ public class SimulationTaskTest {
 		
 		NetworkViewer n = new NetworkViewer();
 		n.display();
-		SimulatorState.startSimulation(3000, tasks, n);
+		SimulatorState.startSimulation(3000, tasks, null, n);
 		
 		try {
 			Thread.sleep(15000);
