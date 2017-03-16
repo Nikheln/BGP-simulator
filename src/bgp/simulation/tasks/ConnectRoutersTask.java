@@ -1,7 +1,7 @@
 package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 
 public class ConnectRoutersTask extends SimulationTask implements TopologyChanging {
@@ -16,8 +16,8 @@ public class ConnectRoutersTask extends SimulationTask implements TopologyChangi
 
 	@Override
 	public void runTask() throws Exception {
-		BGPRouter r1 = SimulatorState.getRouter(router1);
-		BGPRouter r2 = SimulatorState.getRouter(router2);
+		BGPRouter r1 = Simulator.getRouter(router1);
+		BGPRouter r2 = Simulator.getRouter(router2);
 		
 		BGPRouter.connectRouters(r1, r2);
 	}

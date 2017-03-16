@@ -1,6 +1,6 @@
 package bgp.simulation.tasks;
 
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 
 public class DeleteRouterTask extends SimulationTask implements TopologyChanging {
@@ -14,7 +14,7 @@ public class DeleteRouterTask extends SimulationTask implements TopologyChanging
 
 	@Override
 	protected void runTask() throws Exception {
-		SimulatorState.getRouter(routerId).shutdown();
+		Simulator.getRouter(routerId).shutdown();
 	}
 
 	@Override

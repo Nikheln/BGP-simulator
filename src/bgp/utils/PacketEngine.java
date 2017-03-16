@@ -102,12 +102,12 @@ public class PacketEngine {
 		// AND operations with 0xFF's are in place to avoid type casting to int
 		long calculatedChecksum = 0;
 		for (int i = 0; i < HEADER_LENGTH; i += 2) {
-			calculatedChecksum = (calculatedChecksum + (((packet[i] << 8)&0xFF00) + (packet[i+1]&0x00FF)))
+			calculatedChecksum = (calculatedChecksum | (((packet[i] << 8)&0xFF00) | (packet[i+1]&0x00FF)))
 					&0xFFFFFFFF;
 		}
 		while ((calculatedChecksum&0xFFFFFFFF) > 0xFFFF) {
 			calculatedChecksum = (((calculatedChecksum&0xFFFF0000) >>> 16)
-					+ (calculatedChecksum&0x0000FFFF))&0xFFFFFFFF;
+					| (calculatedChecksum&0x0000FFFF))&0xFFFFFFFF;
 		}
 		return (~calculatedChecksum) & 0xFFFF;
 	}
@@ -163,16 +163,16 @@ public class PacketEngine {
 	
 	public static long extractSender(byte[] packet) {
 		return (((packet[12] << 24)&0xFF000000)
-				+ ((packet[13] << 16)&0x00FF0000)
-				+ ((packet[14] << 8)&0x0000FF00)
-				+ ((packet[15])&0x000000FF))&0xFFFFFFFFL;
+				| ((packet[13] << 16)&0x00FF0000)
+				| ((packet[14] << 8)&0x0000FF00)
+				| ((packet[15])&0x000000FF))&0xFFFFFFFFL;
 	}
 	
 	public static long extractRecipient(byte[] packet) {
-		return (((packet[16] << 24)&0xFF000000)
-				+ ((packet[17] << 16)&0x00FF0000)
-				+ ((packet[18] << 8)&0x0000FF00)
-				+ ((packet[19])&0x000000FF))&0xFFFFFFFFL;
+		return (((packet[16] << 24)&0xFF000000L)
+				| ((packet[17] << 16)&0x00FF0000L)
+				| ((packet[18] << 8)&0x0000FF00L)
+				| ((packet[19])&0x000000FFL))&0xFFFFFFFFL;
 	}
 	
 	public static int extractTTL(byte[] packet) {

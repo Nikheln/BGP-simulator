@@ -41,7 +41,14 @@ public class InterRouterInterface implements AutoCloseable, Runnable {
 	}
 
 	public synchronized void sendData(byte[] content) throws IOException {
-		if (content != null && content.length > 0 && content.length < Consts.MTU) {
+		if (content != null
+				&& content.length > 0
+				&& content.length < Consts.MTU) {
+			// Send synchronization bytes
+			for (int i = 0; i < SYNCHRONIZATION_BYTES; i++) {
+				this.out.write(0);
+			}
+			this.out.write(0xFF);
 			
 			// Send the amount of upcoming octets in two bytes
 			this.out.write((content.length&0xFF00) >>> 8);
@@ -66,6 +73,8 @@ public class InterRouterInterface implements AutoCloseable, Runnable {
 		byte[] readBuffer = new byte[Consts.MTU];
 		while (!shutdown) {
 			try {
+				// Read synchronization bytes
+				while (in.read() == 0) { }
 				// Read two bytes to get the octet count of the packet
 				in1 = in.read();
 				in2 = in.read();

@@ -2,7 +2,7 @@ package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
 import bgp.core.messages.NotificationMessage;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 
 public class DisconnectRoutersTask extends SimulationTask implements TopologyChanging {
@@ -18,7 +18,7 @@ public class DisconnectRoutersTask extends SimulationTask implements TopologyCha
 
 	@Override
 	protected void runTask() throws Exception {
-		BGPRouter breaking = SimulatorState.getRouter(breakingRouter);
+		BGPRouter breaking = Simulator.getRouter(breakingRouter);
 		
 		if (breaking.hasConnectionTo(routerToDisconnect)) {
 			breaking.getConnectionFor(routerToDisconnect, false)

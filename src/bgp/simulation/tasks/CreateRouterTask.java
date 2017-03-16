@@ -1,7 +1,7 @@
 package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 import bgp.utils.Subnet;
 
@@ -20,7 +20,7 @@ public class CreateRouterTask extends SimulationTask implements TopologyChanging
 	protected void runTask() throws Exception {
 		BGPRouter r = new BGPRouter(routerId, Subnet.getSubnet(subnet));
 		
-		SimulatorState.registerRouter(r);
+		Simulator.registerRouter(r);
 	}
 
 	@Override

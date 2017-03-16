@@ -1,9 +1,6 @@
 package bgp.ui;
 
-import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Container;
-import java.awt.FlowLayout;
 import java.awt.event.WindowEvent;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -22,8 +19,8 @@ import javax.swing.JTextField;
 import javax.swing.text.NumberFormatter;
 
 import bgp.simulation.LinkingOrder;
-import bgp.simulation.SimulatorState;
-import bgp.simulation.SimulatorState.SimulationState;
+import bgp.simulation.Simulator;
+import bgp.simulation.Simulator.SimulationState;
 import bgp.simulation.tasks.AddClientsTask;
 import bgp.simulation.tasks.ChangeLocalPrefTask;
 import bgp.simulation.tasks.ChangeTrustTask;
@@ -130,7 +127,7 @@ public class TaskCreationPopup extends JFrame {
 		private TaskEditor() {
 			setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 			add(delayField);
-			delayField.setVisible(SimulatorState.getSimulationState() != SimulationState.STARTED);
+			delayField.setVisible(Simulator.getSimulationState() != SimulationState.STARTED);
 		}
 		
 		protected abstract SimulationTask getTask();
@@ -157,11 +154,7 @@ public class TaskCreationPopup extends JFrame {
 					
 				}
 			}
-			if (routerIds.isEmpty()) {
-				return new AddClientsTask(amountOfClientsField.getValue(), delayField.getValue());
-			} else {
-				return new AddClientsTask(routerIds, amountOfClientsField.getValue(), delayField.getValue());
-			}
+			return new AddClientsTask(routerIds, amountOfClientsField.getValue(), delayField.getValue());
 		}
 		
 	}

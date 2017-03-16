@@ -3,14 +3,15 @@ package bgp.ui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -21,17 +22,17 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.border.BevelBorder;
 
 import org.graphstream.ui.swingViewer.ViewPanel;
 import org.graphstream.ui.view.Viewer;
 
 import bgp.core.BGPRouter;
-import bgp.core.network.ASConnection;
-import bgp.core.network.fsm.State;
 import bgp.core.routing.SubnetNode;
 import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.Logger;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
+import bgp.simulation.Simulator.SimulationState;
 import bgp.simulation.tasks.SimulationTask;
 import bgp.simulation.tasks.SimulationTask.SimulationTaskType;
 import bgp.simulation.tasks.SimulationTask.TaskState;
@@ -57,7 +58,6 @@ public class MainView extends JFrame {
 	private JComboBox<SimulationTaskType> newTaskDropdown;
 	private JComboBox<Integer> routingTableSelector;
 	private JButton startButton;
-	private JButton stopButton;
 	
 	public MainView() {
 		super();
@@ -68,11 +68,13 @@ public class MainView extends JFrame {
 	
 	private void buildUI() {
 		setTitle("BGP Simulation");
-		setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
+		setResizable(false);
 		
 		Container pane = getContentPane();
+		pane.setPreferredSize(new Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
 		pane.setLayout(null);
+		pack();
 		
 		// Viewer
 		viewerComponent = new Viewer(networkViewer, Viewer.ThreadingModel.GRAPH_IN_ANOTHER_THREAD);
@@ -80,31 +82,28 @@ public class MainView extends JFrame {
 		
 		ViewPanel p = viewerComponent.addDefaultView(false);
 		p.setSize(WINDOW_HEIGHT, WINDOW_HEIGHT);
+		p.setLocation(0, 0);
 		pane.add(p);
 		
 		// Task list
+		JPanel sideContainer = new JPanel();
+		sideContainer.setLayout(new BorderLayout(0, 0));
+		sideContainer.setSize(SIDEPANEL_WIDTH, WINDOW_HEIGHT);
+		sideContainer.setLocation(WINDOW_HEIGHT, 0);
+		pane.add(sideContainer);
+		
 		taskContainer = new JPanel();
 		taskContainer.setLayout(new BoxLayout(taskContainer, BoxLayout.Y_AXIS));
-		taskContainer.setSize(SIDEPANEL_WIDTH, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
-		taskContainer.setLocation(WINDOW_HEIGHT, 0);
-		pane.add(new JScrollPane(taskContainer));
+		sideContainer.add(new JScrollPane(taskContainer, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.CENTER);
 		
 		// Control buttons
 		controlButtonContainer = new JPanel();
-		controlButtonContainer.setSize(SIDEPANEL_WIDTH, BUTTON_CONTAINER_HEIGHT);
-		controlButtonContainer.setLocation(WINDOW_HEIGHT, WINDOW_HEIGHT - BUTTON_CONTAINER_HEIGHT);
+		controlButtonContainer.setPreferredSize(new Dimension(SIDEPANEL_WIDTH, BUTTON_CONTAINER_HEIGHT));
+		controlButtonContainer.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+		sideContainer.add(controlButtonContainer, BorderLayout.PAGE_END);
 		
-
-		routingTableSelector = new JComboBox<>();
-		routingTableSelector.addActionListener(e -> {
-			if (routingTableSelector.getSelectedIndex() > 0) {
-				showRoutingTable(routingTableSelector.getItemAt(routingTableSelector.getSelectedIndex()));
-			}
-		});
-		controlButtonContainer.add(routingTableSelector);
 		
 		newTaskDropdown = new JComboBox<>(SimulationTaskType.values());
-		
 		newTaskDropdown.addActionListener(e -> {
 			SimulationTaskType type = (SimulationTaskType) newTaskDropdown.getSelectedItem();
 			if (type != SimulationTaskType.NONE) {
@@ -115,45 +114,38 @@ public class MainView extends JFrame {
 						popup.getTask().ifPresent(task -> processNewTask(task));
 					}
 				});
-				popup.setLocation(WINDOW_WIDTH, LOGGER_HEIGHT);
+				popup.setLocationRelativeTo(MainView.this);
 				popup.setVisible(true);	
 			}
 		});
+		controlButtonContainer.add(new JLabel("Add new task"));
 		controlButtonContainer.add(newTaskDropdown);
 		
 		startButton = new JButton("Start simulation");
+		startButton.setPreferredSize(new Dimension(SIDEPANEL_WIDTH - 20, 25));
 		startButton.addActionListener(e -> {
-			SimulatorState.startSimulation(500, tasks, this, networkViewer);
-			stopButton.setEnabled(true);
-			startButton.setEnabled(false);
+			if (Simulator.getSimulationState() == SimulationState.STARTED) {
+				Simulator.stopSimulation();
+				tasks.clear();
+				taskContainer.removeAll();
+				startButton.setText("Start simulation");
+			} else {
+				Simulator.startSimulation(500, tasks, this, networkViewer);
+				startButton.setText("Stop simulation");
+			}
 		});
 		controlButtonContainer.add(startButton);
 		
-		stopButton = new JButton("Stop simulation");
-		stopButton.setEnabled(false);
-		stopButton.addActionListener(e -> {
-			SimulatorState.stopSimulation();
-			startButton.setEnabled(true);
-			stopButton.setEnabled(false);
-		});
-		controlButtonContainer.add(stopButton);
-		
-		JButton t = new JButton("Magic");
-		t.addActionListener(e -> {
-			Map<State, Integer> counters = new HashMap<>();
-			for (int rid : SimulatorState.getReservedIds()) {
-				for (ASConnection conn : SimulatorState.getRouter(rid).getAllConnections()) {
-					counters.put(conn.getCurrentState(), counters.getOrDefault(conn.getCurrentState(),0)+1);
-				}
-			}
-			
-			for (State s : State.values()) {
-				System.out.println(s + " " + counters.getOrDefault(s, 0));
-			}
-		});
-		controlButtonContainer.add(t);
 
-		pane.add(controlButtonContainer);
+		routingTableSelector = new JComboBox<>();
+		routingTableSelector.setMinimumSize(new Dimension(80, 20));
+		routingTableSelector.addActionListener(e -> {
+			if (routingTableSelector.getSelectedIndex() > 0) {
+				showRoutingTable(routingTableSelector.getItemAt(routingTableSelector.getSelectedIndex()));
+			}
+		});
+		controlButtonContainer.add(new JLabel("Display routing table"));
+		controlButtonContainer.add(routingTableSelector);
 	}
 	
 	private Map<LogMessageType, Boolean> logFilters = new EnumMap<>(LogMessageType.class);
@@ -163,6 +155,7 @@ public class MainView extends JFrame {
 			logFilters.put(lmt, true);
 		}
 		JFrame logWindow = new JFrame("Log");
+		logWindow.setResizable(false);
 		logWindow.setSize(LOGGER_WIDTH, LOGGER_HEIGHT);
 		logWindow.setLocation(WINDOW_WIDTH, 0);
 		logWindow.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -209,7 +202,7 @@ public class MainView extends JFrame {
 	
 	public synchronized void refreshRouterList() {
 		routingTableSelector.removeAllItems();
-		SimulatorState.getReservedIds().forEach(id -> routingTableSelector.addItem(id));
+		Simulator.getReservedIds().forEach(id -> routingTableSelector.addItem(id));
 	}
 	
 	private JFrame routingTableWindow;
@@ -217,7 +210,7 @@ public class MainView extends JFrame {
 		if (routingTableWindow != null) {
 			routingTableWindow.dispose();
 		}
-		BGPRouter r = SimulatorState.getRouter(routerId);
+		BGPRouter r = Simulator.getRouter(routerId);
 		
 		String[] columns = {"Subnet", "First hop", "Path length"};
 		
@@ -245,7 +238,7 @@ public class MainView extends JFrame {
 	private final List<SimulationTask> tasks = new ArrayList<>();
 	
 	private void processNewTask(SimulationTask task) {
-		switch (SimulatorState.getSimulationState()) {
+		switch (Simulator.getSimulationState()) {
 		case ERROR:
 			JOptionPane.showMessageDialog(this, "Error in simulation, task not executed");
 			return;
@@ -261,7 +254,7 @@ public class MainView extends JFrame {
 		case STARTED:
 			addTaskPanel(task);
 			tasks.add(task);
-			SimulatorState.runTaskNow(task);
+			Simulator.runTaskNow(task);
 			if (task.getState() == TaskState.FAILED) {
 				JOptionPane.showMessageDialog(this, "Task failed");
 			}
@@ -272,12 +265,11 @@ public class MainView extends JFrame {
 	
 	private void addTaskPanel(SimulationTask task) {
 		int index = (int) tasks.stream()
-				.map(t -> t.getDelay())
-				.filter(delay -> delay < task.getDelay())
+				.filter(t -> t.getDelay() < task.getDelay())
 				.count();
-		
 		taskContainer.add(new TaskPanel(task), index);
-		taskContainer.invalidate();
+		taskContainer.repaint();
+		taskContainer.revalidate();
 	}
 	
 	private class TaskPanel extends JPanel {
@@ -287,8 +279,12 @@ public class MainView extends JFrame {
 		
 		public TaskPanel(SimulationTask task) {
 			super();
-			
-			prefix = "<html><b>" + task.getType().toString() + "</b> (" + task.getDelay() + " ms)<br>Status: ";
+			setLayout(new BorderLayout(10, 0));
+			double timestamp = task.getDelay() / 1000.0;
+			if (Simulator.getSimulationState() == SimulationState.STARTED) {
+				timestamp = (System.currentTimeMillis() - Simulator.getSimulationStartTime()) / 1000.0;
+			}
+			prefix = "<html><b>" + task.getType().toString() + "</b> (" + timestamp + " s)<br>Status: ";
 			suffix = "</html>";
 			info = new JLabel(prefix + task.getState() + suffix);
 			cancelButton = new JButton("Cancel ");
@@ -297,8 +293,8 @@ public class MainView extends JFrame {
 				task.cancelTask();
 			});
 
-			add(info);
-			add(cancelButton);
+			add(info, BorderLayout.CENTER);
+			add(cancelButton, BorderLayout.EAST);
 			
 			task.addStateChangeListener(() -> {
 				updateStatus(task.getState());
@@ -307,7 +303,10 @@ public class MainView extends JFrame {
 				}
 			});
 			
-			this.setSize(SIDEPANEL_WIDTH, 200);
+			setPreferredSize(new Dimension(SIDEPANEL_WIDTH, 50));
+			setMaximumSize(new Dimension(SIDEPANEL_WIDTH, 50));
+			setBorder(BorderFactory.createBevelBorder(BevelBorder.RAISED));
+			
 		}
 		
 		public void updateStatus(TaskState newState) {

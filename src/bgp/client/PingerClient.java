@@ -10,7 +10,9 @@ import bgp.client.messages.MessageHandlers.Pinger;
 import bgp.client.messages.PingRequest;
 import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Logger;
+import bgp.simulation.Simulator;
+import bgp.simulation.LogMessage.LogMessageType;
 import bgp.utils.PacketEngine;
 
 public class PingerClient extends BGPClient implements Pinger {
@@ -38,6 +40,7 @@ public class PingerClient extends BGPClient implements Pinger {
 				
 			@Override
 			public void run() {
+				Logger.clientLog("Pings sent: " + pingsSent + ", pings lost: " + (pingsSent - responsesReceived), address, LogMessageType.GENERAL);
 				for (long recipient : recipientAddresses) {
 					boolean limitReached = sendPing(recipient);
 					
@@ -50,7 +53,7 @@ public class PingerClient extends BGPClient implements Pinger {
 			}
 		};
 		
-		SimulatorState.addClientTask(task, interval);
+		Simulator.addClientTask(task, interval);
 	}
 	
 	public void stopPinging() {

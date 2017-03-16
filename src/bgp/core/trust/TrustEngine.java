@@ -22,7 +22,7 @@ import javax.crypto.Cipher;
 import bgp.core.messages.TrustMessage;
 import bgp.core.messages.UpdateMessage;
 import bgp.core.messages.pathattributes.AsPath;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.utils.PacketEngine;
 import bgp.utils.Pair;
 
@@ -206,7 +206,7 @@ public class TrustEngine implements TrustProvider {
 	 */
 	public Optional<byte[]> handleTrustMessage(int ownId, TrustMessage tm, long senderAddress, long recipientAddress) {
 		int reviewerId = tm.getReviewerId();
-		byte[] reviewerKey = SimulatorState.getPublicKey(reviewerId).getEncoded();
+		byte[] reviewerKey = Simulator.getPublicKey(reviewerId);
 		int targetId = tm.getTargetId();
 		if (tm.isRequest()) {
 			// Respond to trust query

@@ -37,7 +37,7 @@ import bgp.core.routing.SubnetNode;
 import bgp.core.trust.TrustEngine;
 import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.Logger;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.utils.Address;
 import bgp.utils.AddressProvider;
 import bgp.utils.PacketEngine;
@@ -98,6 +98,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 
 	@Override
 	public void routePacket(byte[] packet, ASConnection receivingConnection) {
+		if (packetProcessingThread.isShutdown()) {
+			return;
+		}
 		packetProcessingThread.execute(() -> {
 			if (!PacketEngine.validatePacketHeader(packet)) {
 				// Drop packet if checksum doesn't match
@@ -108,8 +111,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 			long address = PacketEngine.extractRecipient(packet);
 			// Decide the AS to forward to
 			int nextHop = routingEngine.decidePath(address);
-			
-			if (nextHop == this.id) {
+			if (nextHop == this.id || this.subnet.containsAddress(address)) {
 				// Packet is designated to this subnet
 				PacketReceiver rec = packetReceivers.get(address);
 				if (rec != null) {
@@ -117,7 +119,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 						this.receivePacket(packet);
 					} else {
 						// Run in separate simulator threads
-						SimulatorState.getClientExecutor().execute(() -> rec.receivePacket(packet));
+						Simulator.getClientExecutor().execute(() -> rec.receivePacket(packet));
 					}
 				}
 			} else if (connections.containsKey(nextHop)
@@ -159,6 +161,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 	 * @param nextHop
 	 */
 	private void sendViaInterface(byte[] packet, int nextHop) {
+		if (packetProcessingThread.isShutdown()) {
+			return;
+		}
 		packetProcessingThread.execute(() -> {
 			if (connections.containsKey(nextHop)) {
 				connections.get(nextHop).sendPacket(packet);
@@ -188,6 +193,9 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 
 	@Override
 	public void receivePacket(byte[] pkg) {
+		if (maintenanceThread.isShutdown()) {
+			return;
+		}
 		receivedPacketCount++;
 		long senderAddress = PacketEngine.extractSender(pkg);
 		int senderId = addressToASId.getOrDefault(senderAddress, -1);
@@ -222,7 +230,7 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 					// If UPDATE message AS_PATH has more than one peer, ask for trust vote
 					Optional<TrustMessage> possibleTrustRequest = trustEngine.decideTrustVote(um);
 					possibleTrustRequest.ifPresent(req -> {
-						Optional<Address> reviewerAddress = SimulatorState.getRouterAddress(req.getReviewerId());
+						Optional<Address> reviewerAddress = Simulator.getRouterAddress(req.getReviewerId());
 						if (reviewerAddress.isPresent()) {
 							Address ownAddress = this.getAddress();
 							
@@ -463,9 +471,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		maintenanceThread.shutdownNow();
 		
 		try {
-			SimulatorState.unregisterRouter(this);
+			Simulator.unregisterRouter(this.id);
 		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 	

@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import bgp.simulation.Logger;
 import bgp.utils.Subnet;
 
 public class SubnetNode {

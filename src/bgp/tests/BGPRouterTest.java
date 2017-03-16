@@ -26,7 +26,7 @@ import bgp.core.messages.pathattributes.PathAttribute;
 import bgp.core.network.ASConnection;
 import bgp.core.network.fsm.State;
 import bgp.simulation.LinkingOrder;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.utils.PacketEngine;
 import bgp.utils.Subnet;
 
@@ -38,8 +38,7 @@ public class BGPRouterTest {
 	 * their connection is in state ESTABLISHED afterwards.
 	 */
 	public void testConnectTwoRouters() {
-		SimulatorState.resetState();
-		SimulatorState.setTestingMode(true);
+		Simulator.resetState();
 		
 		BGPRouter r1 = new BGPRouter(100, Subnet.getSubnet("10.0.0.0/8"));
 		BGPRouter r2 = new BGPRouter(101, Subnet.getSubnet("11.0.0.0/8"));
@@ -74,7 +73,7 @@ public class BGPRouterTest {
 		buildNetwork(LinkingOrder.RANDOM, amountOfRouters);
 		
 		for (int i = 1; i <= 20; i++) {
-			BGPRouter r = SimulatorState.getRouter(i);
+			BGPRouter r = Simulator.getRouter(i);
 			for (ASConnection conn : r.getAllConnections()) {
 				assertEquals(State.ESTABLISHED, conn.getCurrentState());
 			}
@@ -100,7 +99,7 @@ public class BGPRouterTest {
 		NLRI.add(Subnet.getSubnet("11.0.0.0/8"));
 		
 		UpdateMessage um = new UpdateMessage(withdrawnRoutes, pathAttributes, NLRI);
-		BGPRouter r1 = SimulatorState.getRouter(1);
+		BGPRouter r1 = Simulator.getRouter(1);
 		BGPClient c1 = new BGPClient(r1);
 		
 		r1.forwardUpdateMessage(um);
@@ -112,7 +111,7 @@ public class BGPRouterTest {
 		}
 		
 		for (int i = 2; i <= amountOfRouters; i++) {
-			assertNotEquals(-1, SimulatorState.getRouter(i).getRoutingEngine().decidePath(c1.getAddress().getAddress()));
+			assertNotEquals(-1, Simulator.getRouter(i).getRoutingEngine().decidePath(c1.getAddress().getAddress()));
 		}
 	}
 	
@@ -126,22 +125,22 @@ public class BGPRouterTest {
 		
 		buildNetwork(networkType, networkRouterCount);
 
-		List<Integer> routerIds = SimulatorState.getReservedIds();
+		List<Integer> routerIds = Simulator.getReservedIds();
 		Collections.shuffle(routerIds);
 		
 		List<Pinger> pingers = new ArrayList<>();
 		
 		// Add clients to each router
 		for (int i = 0; i < clientsPerRouter; i++) {
-			PingerClient p = new PingerClient(SimulatorState.getRouter(routerIds.get(0)));
-			SimulatorState.registerClient(p);
+			PingerClient p = new PingerClient(Simulator.getRouter(routerIds.get(0)));
+			Simulator.registerClient(p);
 			pingers.add(p);
 			List<Long> newClientAddresses = new ArrayList<>();
 			
 			for (int id : routerIds) {
-				BGPClient c = new BGPClient(SimulatorState.getRouter(id));
+				BGPClient c = new BGPClient(Simulator.getRouter(id));
 				newClientAddresses.add(c.getAddress().getAddress());
-				SimulatorState.registerClient(c);
+				Simulator.registerClient(c);
 			}
 			
 			p.startPinging(newClientAddresses, pingCount, pingInterval);
@@ -163,9 +162,9 @@ public class BGPRouterTest {
 	public void testLinkBreaking() {
 		buildNetwork(LinkingOrder.RING, 5);
 		
-		BGPRouter r3 = SimulatorState.getRouter(3);
-		BGPRouter r4 = SimulatorState.getRouter(4);
-		BGPRouter r5 = SimulatorState.getRouter(5);
+		BGPRouter r3 = Simulator.getRouter(3);
+		BGPRouter r4 = Simulator.getRouter(4);
+		BGPRouter r5 = Simulator.getRouter(5);
 		
 		// Make sure the connection works initially
 		assertEquals(4, r3.getRoutingEngine().decidePath(r5.getAddress().getAddress()));
@@ -190,12 +189,11 @@ public class BGPRouterTest {
 	}
 	
 	private void buildNetwork(LinkingOrder topology, int amountOfRouters) {
-		SimulatorState.resetState();
-		SimulatorState.setTestingMode(true);
+		Simulator.resetState();
 		
 		for (int i = 1; i <= amountOfRouters; i++) {
 			 try {
-				 SimulatorState.registerRouter(new BGPRouter(i, Subnet.getSubnet((10+i)*256*256*256, Subnet.getSubnetMask(16))));
+				 Simulator.registerRouter(new BGPRouter(i, Subnet.getSubnet((10+i)*256*256*256, Subnet.getSubnetMask(16))));
 			} catch (Exception e) {
 				fail(e.getMessage());
 			}
@@ -209,8 +207,8 @@ public class BGPRouterTest {
 			if (id1 == id2) {
 				continue;
 			}
-			BGPRouter r1 = SimulatorState.getRouter(id1);
-			BGPRouter r2 = SimulatorState.getRouter(id2);
+			BGPRouter r1 = Simulator.getRouter(id1);
+			BGPRouter r2 = Simulator.getRouter(id2);
 			
 			if (r1.hasConnectionTo(id2)) {
 				continue;

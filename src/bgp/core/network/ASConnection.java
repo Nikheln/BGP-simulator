@@ -15,7 +15,7 @@ import bgp.core.network.fsm.StateMachine;
 import bgp.core.trust.TrustEngine;
 import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.Logger;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.utils.Address;
 import bgp.utils.Consts;
 import bgp.utils.PacketEngine;
@@ -45,11 +45,11 @@ public class ASConnection {
 		if (ownAddress == null) {
 			throw new IllegalArgumentException("Address can not be null!");
 		}
-		if (!SimulatorState.isAddressFree(ownAddress)) {
+		if (!Simulator.isAddressFree(ownAddress)) {
 			throw new IllegalStateException("Own address is already reserved");
 		}
 		
-		SimulatorState.reserveAddress(ownAddress);
+		Simulator.reserveAddress(ownAddress);
 		
 		this.adapter = new InterRouterInterface(handler, this);
 		this.handler = handler;
@@ -76,9 +76,8 @@ public class ASConnection {
 			OpenMessage m = new OpenMessage(handler.id,
 					Consts.DEFAULT_HOLD_DOWN_TIME,
 					ownAddress.getAddress());
-
-			sendPacket(PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize()));
-
+			byte[] packet = PacketEngine.buildPacket(ownAddress, neighbourAddress, m.serialize());
+			sendPacket(packet);
 			if (fsm.getCurrentState().equals(State.CONNECT)) {
 				fsm.changeState(State.OPEN_SENT);
 			}
@@ -194,7 +193,7 @@ public class ASConnection {
 			
 		}
 		handler.removeConnection(this);
-		SimulatorState.refreshNetworkViewer();
+		Simulator.refreshNetworkViewer();
 	}
 	
 	/**
@@ -205,7 +204,7 @@ public class ASConnection {
 	public void closeConnection() {
 		try {
 			adapter.close();
-			SimulatorState.releaseAddress(ownAddress);
+			Simulator.releaseAddress(ownAddress);
 		} catch (Exception e) {
 			// Failed closing the adapter or freeing the address, might be already down
 		}

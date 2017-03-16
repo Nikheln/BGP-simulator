@@ -12,7 +12,7 @@ import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.SingleGraph;
 
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.utils.Pair;
 
 public class NetworkViewer extends SingleGraph {
@@ -43,9 +43,16 @@ public class NetworkViewer extends SingleGraph {
 	public void markAsDirty() {
 		dirty = true;
 	}
+	
+	@Override
+	public void clear() {
+		super.clear();
+		nodes.clear();
+		edges.clear();
+	}
 
 	private void updateNetwork() {
-		List<Integer> ids = SimulatorState.getReservedIds();
+		List<Integer> ids = Simulator.getReservedIds();
 		
 		// Add routers not in graph
 		for (Integer asId : ids) {
@@ -76,7 +83,7 @@ public class NetworkViewer extends SingleGraph {
 		
 		// Add edges not in graph
 		for (Integer asId : ids) {
-			for (Integer otherId : SimulatorState.getRouter(asId).getConnectedRouterIds()) {
+			for (Integer otherId : Simulator.getRouter(asId).getConnectedRouterIds()) {
 				if (!(edges.containsKey(new Pair<>(asId, otherId)) || edges.containsKey(new Pair<>(otherId, asId)))) {
 					Edge e = addEdge(asId + "-" + otherId, nodes.get(asId), nodes.get(otherId));
 					edges.put(new Pair<>(asId, otherId), e);
@@ -87,7 +94,7 @@ public class NetworkViewer extends SingleGraph {
 		// Remove edges not in network
 		for (Iterator<Pair<Integer, Integer>> iter = edges.keySet().iterator(); iter.hasNext(); ) {
 			Pair<Integer, Integer> nextKey = iter.next();
-			if (!SimulatorState.getRouter(nextKey.getLeft()).hasConnectionTo(nextKey.getRight())) {
+			if (!Simulator.getRouter(nextKey.getLeft()).hasConnectionTo(nextKey.getRight())) {
 				try {
 					removeEdge(edges.get(nextKey));
 				} catch (Exception e) {

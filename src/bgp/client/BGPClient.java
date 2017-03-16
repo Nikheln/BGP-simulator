@@ -8,6 +8,7 @@ import bgp.client.messages.PingResponse;
 import bgp.core.BGPRouter;
 import bgp.core.network.packet.PacketReceiver;
 import bgp.core.network.packet.PacketRouter;
+import bgp.simulation.Simulator;
 import bgp.utils.Address;
 import bgp.utils.AddressProvider;
 import bgp.utils.PacketEngine;
@@ -56,6 +57,7 @@ public class BGPClient implements PacketReceiver, Pingable {
 	@Override
 	public void shutdown() {
 		ap.freeAddress(address);
+		Simulator.unregisterClient(this);
 	}
 
 	@Override

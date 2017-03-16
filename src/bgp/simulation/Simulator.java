@@ -4,13 +4,13 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -20,18 +20,17 @@ import bgp.client.messages.MessageHandlers.Pingable;
 import bgp.core.BGPRouter;
 import bgp.simulation.LogMessage.LogMessageType;
 import bgp.simulation.tasks.SimulationTask;
+import bgp.simulation.tasks.SimulationTask.TaskState;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 import bgp.ui.MainView;
 import bgp.ui.NetworkViewer;
 import bgp.utils.Address;
 
-public class SimulatorState {
-	
-	public static boolean testingMode = false;
+public class Simulator {
 	
 	private static final List<Address> usedAddresses = new ArrayList<>();
-	private static final Map<Integer, BGPRouter> routers = new HashMap<>();
-	private static final Map<Long, BGPClient> clients = new HashMap<>();
+	private static final Map<Integer, BGPRouter> routers = new ConcurrentHashMap<>();
+	private static final Map<Long, BGPClient> clients = new ConcurrentHashMap<>();
 	
 	private static final Executor clientExecutor = Executors.newFixedThreadPool(8);
 	private static final Timer clientTaskTimer = new Timer();
@@ -88,6 +87,9 @@ public class SimulatorState {
 		long simulationStartMillis = new Date().getTime() + waitTime;
 		
 		for (SimulationTask t : tasks) {
+			if (t.getState() != TaskState.WAITING) {
+				continue;
+			}
 			t.onFinish(() -> {
 				if (viewer != null && t instanceof TopologyChanging) {
 					refreshNetworkViewer();
@@ -124,15 +126,27 @@ public class SimulatorState {
 	
 	public static void stopSimulation() {
 		simulationTaskTimer.cancel();
+		resetState();
 		Logger.log("Simulation stopped", 0, LogMessageType.GENERAL);
-		changeState(SimulationState.NOT_STARTED);
 	}
 	
 	public static void resetState() {
-		usedAddresses.clear();
-		routers.clear();
+		clients.forEach((adddress, client) -> client.shutdown()); 
+		routers.forEach((id, router) -> router.shutdown());
 		clients.clear();
+		routers.clear();
+		
+		usedAddresses.clear();
+		
+		if (networkViewer != null) {
+			mainViewer.refreshRouterList();
+			networkViewer.clear();
+		}
+
+		changeState(SimulationState.NOT_STARTED);
 	}
+	
+	
 	
 	public static void reserveAddress(Address address) throws IllegalStateException {
 		if (!isAddressFree(address)) {
@@ -168,11 +182,6 @@ public class SimulatorState {
 		return true;
 	}
 	
-	public static void setTestingMode(boolean tMode) {
-		testingMode = tMode;
-	}
-	
-	
 	public static void registerRouter(BGPRouter router) throws Exception {
 		if (router == null) {
 			throw new IllegalArgumentException("Router can not be null");
@@ -182,13 +191,6 @@ public class SimulatorState {
 		}
 		
 		routers.put(router.id, router);
-	}
-	
-	public static void unregisterRouter(BGPRouter router) throws Exception {
-		if (router == null) {
-			throw new IllegalArgumentException("Router removed can not be null");
-		}
-		unregisterRouter(router.id);
 	}
 	
 	public static void unregisterRouter(int id) throws IllegalStateException {
@@ -215,6 +217,10 @@ public class SimulatorState {
 		clients.put(client.getAddress().getAddress(), client);
 	}
 	
+	public static void unregisterClient(BGPClient client) {
+		clients.remove(client.getAddress().getAddress());
+	}
+	
 	public static Set<Pingable> getPingableClients() {
 		return clients.values()
 				.stream()
@@ -228,8 +234,11 @@ public class SimulatorState {
 	 * @param bgpId
 	 * @return
 	 */
-	public static PublicKey getPublicKey(int bgpId) {
-		return getRouter(bgpId).getPublicKey();
+	public static byte[] getPublicKey(int bgpId) {
+		return Optional.ofNullable(getRouter(bgpId))
+				.map(BGPRouter::getPublicKey)
+				.map(PublicKey::getEncoded)
+				.orElse(new byte[0]);
 	}
 	
 	

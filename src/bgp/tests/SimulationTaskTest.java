@@ -11,7 +11,7 @@ import java.util.List;
 import org.junit.Test;
 
 import bgp.simulation.LinkingOrder;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.AddClientsTask;
 import bgp.simulation.tasks.ConnectRoutersTask;
 import bgp.simulation.tasks.DisconnectRoutersTask;
@@ -43,7 +43,7 @@ public class SimulationTaskTest {
 		
 		NetworkViewer n = new NetworkViewer();
 		n.display();
-		SimulatorState.startSimulation(3000, tasks, null, n);
+		Simulator.startSimulation(3000, tasks, null, n);
 		
 		try {
 			Thread.sleep(15000);

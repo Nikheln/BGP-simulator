@@ -1,9 +1,13 @@
 package bgp.tests;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
+import bgp.core.messages.KeepaliveMessage;
+import bgp.utils.Address;
 import bgp.utils.PacketEngine;
 
 public class PacketEngineTest {
@@ -48,7 +52,15 @@ public class PacketEngineTest {
 
 	@Test
 	public void testExtractSender() {
-		fail("Not yet implemented");
+		KeepaliveMessage m = new KeepaliveMessage();
+		for (int i = 1; i < 256; i++) {
+			for (int j = 1; j < 256; j = j + 3) {
+				Address a = Address.getAddress(i + "." + j + ".0.1");
+				byte[] msg = PacketEngine.buildPacket(a, a, m.serialize());
+				assertEquals(a.address, PacketEngine.extractRecipient(msg));
+				assertEquals(a.address, PacketEngine.extractSender(msg));
+			}
+		}
 	}
 
 	@Test

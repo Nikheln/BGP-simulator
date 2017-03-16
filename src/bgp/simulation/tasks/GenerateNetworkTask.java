@@ -4,7 +4,7 @@ import java.util.Queue;
 
 import bgp.core.BGPRouter;
 import bgp.simulation.LinkingOrder;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 import bgp.simulation.tasks.SimulationTask.TopologyChanging;
 import bgp.utils.Subnet;
 
@@ -30,7 +30,7 @@ public class GenerateNetworkTask extends SimulationTask implements TopologyChang
 	protected void runTask() throws Exception {
 		Queue<Integer> ids = topology.getLinkingOrder(networkSize);
 		for (int i = 1; i <= networkSize; i++) {
-			SimulatorState.registerRouter(new BGPRouter(i, Subnet.getSubnet((100+i)+".0.0.0/8")));
+			Simulator.registerRouter(new BGPRouter(i, Subnet.getSubnet((100+i)+".0.0.0/8")));
 		}
 		
 		while (!ids.isEmpty()) {
@@ -41,8 +41,8 @@ public class GenerateNetworkTask extends SimulationTask implements TopologyChang
 				continue;
 			}
 			
-			BGPRouter r1 = SimulatorState.getRouter(id1);
-			BGPRouter r2 = SimulatorState.getRouter(id2);
+			BGPRouter r1 = Simulator.getRouter(id1);
+			BGPRouter r2 = Simulator.getRouter(id2);
 			
 			if (r1.hasConnectionTo(id2) || r2.hasConnectionTo(id1)) {
 				continue;

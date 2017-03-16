@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 
 import bgp.client.PingerClient;
 import bgp.core.BGPRouter;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 
 public class StartGeneratingTrafficTask extends SimulationTask {
 
@@ -40,15 +40,15 @@ public class StartGeneratingTrafficTask extends SimulationTask {
 
 	@Override
 	protected void runTask() throws Exception {
-		BGPRouter r = SimulatorState.getRouter(sourceRouter);
+		BGPRouter r = Simulator.getRouter(sourceRouter);
 		if (r == null) {
 			throw new Exception();
 		}
 		pinger = new PingerClient(r);
-		List<Long> recipientAddresses = destinationRouters
+		List<Long> recipientAddresses = (destinationRouters.isEmpty() ? Simulator.getReservedIds() : destinationRouters)
 				.stream()
 				// Map ID's to routers
-				.map(id -> SimulatorState.getRouter(id))
+				.map(id -> Simulator.getRouter(id))
 				// Filter unfound routers
 				.filter(router -> router != null)
 				// Extract clients as PacketReceiver's from the routers

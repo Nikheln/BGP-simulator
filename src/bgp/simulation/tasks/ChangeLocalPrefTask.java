@@ -1,7 +1,7 @@
 package bgp.simulation.tasks;
 
 import bgp.core.BGPRouter;
-import bgp.simulation.SimulatorState;
+import bgp.simulation.Simulator;
 
 public class ChangeLocalPrefTask extends SimulationTask {
 	
@@ -16,7 +16,7 @@ public class ChangeLocalPrefTask extends SimulationTask {
 
 	@Override
 	protected void runTask() throws Exception {
-		BGPRouter r = SimulatorState.getRouter(changingRouter);
+		BGPRouter r = Simulator.getRouter(changingRouter);
 		r.getRoutingEngine().setLocalPref(targetRouter, newLocalPref);
 	}
 

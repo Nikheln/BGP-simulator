@@ -37,7 +37,7 @@ public class LogMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[");
-		sb.append((timestamp - SimulatorState.getSimulationStartTime())/1000.0);
+		sb.append((timestamp - Simulator.getSimulationStartTime())/1000.0);
 		sb.append(" s] ");
 		if (originatingRouter == 0) {
 			sb.append("Global");

@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import bgp.simulation.LogMessage.LogMessageType;
+import bgp.utils.Address;
 
 public class Logger {
 	
@@ -30,5 +31,9 @@ public class Logger {
 	
 	public static void log(String message, int routerId, LogMessageType type) {
 		processLog(new LogMessage(routerId, message, type));
+	}
+	
+	public static void clientLog(String message, Address address, LogMessageType type) {
+		processLog(new ClientLogMessage(address, message, type));
 	}
 }
