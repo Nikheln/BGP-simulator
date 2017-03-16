@@ -42,26 +42,46 @@
 2 h & Notification message generation and exception throwing \\
 5 h & Trust system, cryptographically protected voting \\
 2 h & Client implementation and behaviour \\
-10 h & Fixing issues \\
-15 h & Implementing the UI \\
+15 h & Fixing issues \\
+20 h & Implementing the UI \\
 \vspace{1mm} \\
 15 h & Writing the report \\
 3 h & Doing the presentation \\
 \hline
-\textbf{90 h} & \textbf{Total time (approx.)}
+\textbf{100 h} & \textbf{Total time (approx.)}
 \end{tabular}
 \end{center}
 \caption{Approximate list of time taken by various parts\\of the project, semi-chronological ordering.}
 \label{fig:timetaken}
 \end{figure}
 
-This document and the corresponding source code are done as a course project for course Protocol Processing, held in University of Turku in spring of 2017. I did the project by myself (and therefore there is no attached work distribution table), an approximate time-distribution of the various tasks is presented in Figure \ref{fig:timetaken}. I started as a part of another group, but the large size on the group and my will to gain knowledge and experience on all parts of the implementation caused me to extract myself from the previous group. As an afterthought, that was a really good idea, and gave me an excellent possibility to both learn specifics on network routing and do a semi-large ($\sim 5000+$ LoC) programming project by myself. Initially being a member of a group delayed starting the project by about two weeks. Since there was no need to communicate the specifics of the implementation to other people during implementation, the planning went on mostly as a thought process, and the first implementation of most classes was on source code.
+This document and the corresponding source code are done as a course project for course Protocol Processing, held in University of Turku in spring of 2017. I did the project by myself (and therefore there is no attached work distribution table), an approximate time-distribution of the various tasks is presented in Figure \ref{fig:timetaken}. I started as a part of another group, but the large size on the group and my will to gain knowledge and experience on all parts of the implementation caused me to extract myself from the previous group. As an afterthought, that was a really good idea, and gave me an excellent possibility to both learn specifics on network routing and do a semi-large ($\sim 6000$ LoC) programming project by myself. Initially being a member of a group delayed starting the project by about two weeks. Since there was no need to communicate the specifics of the implementation to other people during implementation, the planning went on mostly as a thought process, and the first implementation of most classes was on source code.
 
 The initial plan was to implement each router and its contained functionalities (routing table, connections, trust) as separate objects running their own threads, and implement the physical and data link layers of the connections between routers using some of Java's built-in stream classes, due to their good support for multi-thread implementations. The first idea of the routing table was using two tree structures: one for known subnets (presented in \ref{sec:routing}) and one for connections between routers in the network. This dual model worked rather well, until I realized there was no way to know when a link between two routers is broken, the \texttt{UPDATE} message only tells what subnets are no longer reachable. This required a complete rewrite of the routing engine. Outside the problem with the routing table implementation, the whole process was rather straightforward, and no major issues were encountered.
 
 The largest issues during the project stemmed from the definition of BGP \cite{RFC4271} focusing only on the limitations and requirements of the protocol, not so much on the implementation. Most attempts at finding information on the implementation yielded only information on how to do a specific action on a Cisco router. Apparently, implementing a BGP router is not a very common task, and the best practices of the field are hard to come by.
 
-From design point-of-view, the visualization of the network and the simulation was the hardest part. Implementing a functioning GUI would be the best solution, but that would, naturally, take a long time. For the final implementation, I settled for a text-based configuration with a graphical representation of the network.
+\section{Using the simulator}
+\begin{figure}
+\includegraphics[width=\textwidth]{ui_screenshot}
+\caption{Main parts of the UI}
+\label{fig:ui}
+\end{figure}
+The simulator is distributed as a \texttt{.jar} file that requires at least JRE8 to run. The program should run correctly after just opening the file. Otherwise, running it from command line (using the \texttt{java} command) or reinstalling Java are recommended. Most of the simulators functionalities are available from the graphical user interface presented in Figure \ref{fig:ui}.
+
+The user interface consists of:
+\begin{enumerate}
+\item Graph representing the current connectivity of the network. Nodes can be dragged around. The graph does not show clients connected to the routers as they would make the plotting too tasking.
+\item Popup window for creating a new simulation task. Simulation task windows can be opened up from the \emph{Add new task} dropdown in the lower part of the UI. If the simulation has not yet been started, there is a field that allows user to specify time from the beginning of simulation before the task is run. As there is little to no input validation in the task creation fields, users are advised to enter meaningful and correct instructions for the simulator.
+\item List of simulation tasks, both upcoming ones and those that have already been run. Tasks in the future can be cancelled using the button next to the task.
+\item Simulation controls. The first dropdown displays the task creation popup (2.), the button either starts or stops the simulation and the last dropdown allows user to inspect routing tables of existing routers.
+\item Log window. Most message, connectivity and routing information is displayed here. Certain types of messages can be filtered using the buttons at the lower part of the window.
+\item Routing table window displays the current path selections for a router selected using the dropdown in controls (4.).
+\end{enumerate}
+
+For ease of use, network auto-generation was implemented as a task, and especially the \emph{Clustered} network topology presents realistic and interesting networks with feasible router counts (15+). To create traffic to the network, clients should be added to the routers using the corresponding task (leaving the ID list field empty populates all routers) and using the \emph{Start generating traffic} task to ping the created clients (once again, leaving the ID field empty causes the pinger to contact all clients) repeatedly. It should be noted that both of these functionalities require the connecting routers to exist, so giving some delay to the tasks is recommended.
+
+The complexity of the simulation might cause some issues during simulation stopping, and if the system starts to behave unexpectedly, restarting the simulation is advised.
 
 \section{Introduction}\label{sec:intro}
 The simulator software is implemented in Java programming language using just the base libraries. For visualization purposes, a graph plotting library, GraphStream \cite{graphstreamteam2017}, was attached. A high-level overview of the program structure is presented in Section\ref{sec:hlo}.
@@ -79,7 +99,7 @@ The simulation has the following basic technical features and limitations:
 \item Routing information is transmitted using \texttt{UPDATE} messages after connection initialization and all routing table changes.
 \item Additional BGP message type, \texttt{TRUST} has been added for trust voting between routers. To avoid Man-in-the-Middle attacks (usually the router being voted on is on the transmission path of the vote), the trust votes are encrypted using 1024-bit RSA and signed using RSA with SHA-1. To avoid making key transmission overly complicated, a PKI-like functionality was made available as a globally available class, providing routers with other routers public keys. The trust implementation is discussed in more detail in Section \ref{sec:trust}.
 \item Behaviour in error situations has been implemented comprehensively, and both L1/L2 breakage, missing \texttt{KEEPALIVE} messages, and erroneous BGP messages cause the routers to drop the link and inform their neighbourhood of this. Possible issues effect the trust rate of the misbehaving router.
-\item Since the simulation is targeted at demonstrating the behaviour of BGP, logging has not been implemented.
+\item For sensible testing, a basic GUI with testing features and logging has been implemented.
 \end{itemize}
 
 \section{Code overview}\label{sec:hlo}
@@ -98,8 +118,10 @@ The simulation has the following basic technical features and limitations:
 .4 packet\DTcomment{Interfaces defining behaviour for actors handling packets}.
 .3 routing\DTcomment{Routing table engine}.
 .3 trust\DTcomment{Inter-router trust table}.
+.2 simulation\DTcomment{Functionality for simulation execution}.
+.3 tasks\DTcomment{Actions to modify the network during simulation}.
 .2 tests\DTcomment{JUnit tests to ensure correct working of the program}.
-.2 ui\DTcomment{User interface components}.
+.2 ui\DTcomment{User interface functionality}.
 .2 utils\DTcomment{Functionalities needed by various classes (e.g. IP addresses)}.
 }
 \caption{Package structure of the code}
@@ -143,6 +165,9 @@ Class representing a client of the network, connected through one of the routers
 
 \paragraph{\texttt{bgp.utils.PacketEngine}}
 Functionalities regarding the construction, validation and modification of IP packets. Packet constructions and verifications, checksum calculations, TTL modifications and field extractions are done here. As mentioned in Section \ref{sec:intro}, Version, IHL, DSCP, ECN, protocol and fragmentation fields are used, but filled with default values.
+
+\paragraph{\texttt{bgp.simulation.Simulator}}
+Main controller class running the simulation and updating the UI.
 
 
 \section{Connection initialization process}\label{sec:init}
@@ -213,7 +238,7 @@ C_T=\frac{C}{T} \text{, where } C=\text{initial cost (in this case, path length)
 
 \subsection{Modifying trust}\label{ssec:trustmod}
 
-Modifying the inherent trust can either be done by the operator or automated observations of the neighbours behaviour. In the current implementation, negative behaviour (dropping connection, sending invalid BGP messages) lowers the observed trust rating, while continuous normal behaviour raises it.
+Modifying the inherent trust can either be done by the operator or automated observations of the neighbours behaviour. In the current implementation, negative behaviour (dropping connection, sending invalid BGP messages) lowers the observed trust rating, while continuous normal behaviour raises it. Unfortunately the changes in trust do not effect the current routing information but only the routing decisions made while processing new possible routes.
 
 Voted trust is changed by second-order neighbours' votes, and is defined as the average of received votes. For a more robust solution, second-order neighbours' trust values could also be defined, using them as weights for average calculation.
 
