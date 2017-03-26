@@ -470,6 +470,8 @@ public class BGPRouter implements PacketRouter, PacketReceiver, AddressProvider 
 		packetProcessingThread.shutdownNow();
 		maintenanceThread.shutdownNow();
 		
+		trustEngine.shutdown();
+		
 		try {
 			Simulator.unregisterRouter(this.id);
 		} catch (Exception e) {

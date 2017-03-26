@@ -16,6 +16,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.Cipher;
 
@@ -52,6 +56,13 @@ public class TrustEngine implements TrustProvider {
 	// Count the amount of trust messages received for each neighbour
 	private final Map<Integer, Integer> voteCounts;
 	
+
+	// Milliseconds between trust incrementation
+	private static final long TRUST_INCREASE_FREQUENCY = 60000;
+	private static final int TRUST_INCREASE_RATE = 3;
+	private static final ScheduledExecutorService TRUST_INCREASER = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledFuture<?> trustIncrementationTask;
+	
 	public TrustEngine() {
 		this.votedTrustValues = new HashMap<>();
 		this.directTrustValues = new HashMap<>();
@@ -64,6 +75,11 @@ public class TrustEngine implements TrustProvider {
 		}
 		kpg.initialize(CRYPTO_KEYSIZE);
 		kp = kpg.generateKeyPair();
+		
+		// Schedule trust incrementation
+		trustIncrementationTask = TRUST_INCREASER.scheduleAtFixedRate(() -> {
+			this.directTrustValues.keySet().forEach(k -> changeDirectTrust(k, TRUST_INCREASE_RATE));
+		}, TRUST_INCREASE_FREQUENCY, TRUST_INCREASE_FREQUENCY, TimeUnit.MILLISECONDS);
 	}
 	
 	public PublicKey getPublicKey() {
@@ -272,6 +288,10 @@ public class TrustEngine implements TrustProvider {
 		
 		directTrustValues.put(targetId, newTrust);
 		
+	}
+	
+	public void shutdown() {
+		trustIncrementationTask.cancel(true);
 	}
 
 }
